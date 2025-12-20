@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isValidWebhookUrl } from '@/lib/webhookValidator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,24 @@ export default function SheetsWebhookSettings() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate webhook URLs before saving
+    if (webhookUrl) {
+      const validation = isValidWebhookUrl(webhookUrl);
+      if (!validation.valid) {
+        toast.error(`Add webhook: ${validation.error}`);
+        return;
+      }
+    }
+
+    if (deleteWebhookUrl) {
+      const validation = isValidWebhookUrl(deleteWebhookUrl);
+      if (!validation.valid) {
+        toast.error(`Delete webhook: ${validation.error}`);
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -89,6 +108,13 @@ export default function SheetsWebhookSettings() {
   const testWebhook = async (url: string, type: 'add' | 'delete') => {
     if (!url) {
       toast.error('Please enter a webhook URL first');
+      return;
+    }
+
+    // Validate URL before testing
+    const validation = isValidWebhookUrl(url);
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid webhook URL');
       return;
     }
 

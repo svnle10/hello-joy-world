@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { isValidWebhookUrl } from '@/lib/webhookValidator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,6 +73,13 @@ export default function EmailForm() {
 
     if (!webhookUrl) {
       toast.error('Your webhook URL is not configured. Contact admin.');
+      return;
+    }
+
+    // Validate webhook URL (SSRF protection)
+    const urlValidation = isValidWebhookUrl(webhookUrl);
+    if (!urlValidation.valid) {
+      toast.error('Invalid webhook URL configuration. Contact admin.');
       return;
     }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { isValidWebhookUrl } from '@/lib/webhookValidator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,6 +118,15 @@ export default function AdminPanel() {
       return;
     }
 
+    // Validate webhook URL if provided
+    if (newWebhook) {
+      const validation = isValidWebhookUrl(newWebhook);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid webhook URL');
+        return;
+      }
+    }
+
     setCreating(true);
 
     try {
@@ -160,6 +170,15 @@ export default function AdminPanel() {
     if (!selectedGuide || !editName) {
       toast.error('Please fill in the name');
       return;
+    }
+
+    // Validate webhook URL if provided
+    if (editWebhook) {
+      const validation = isValidWebhookUrl(editWebhook);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid webhook URL');
+        return;
+      }
     }
 
     setUpdating(true);
