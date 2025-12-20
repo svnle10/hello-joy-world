@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useSheetsLogger } from '@/hooks/useSheetsLogger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ const languages = [
 
 export default function EmailForm() {
   const { user } = useAuth();
+  const { logToSheets } = useSheetsLogger();
   const [language, setLanguage] = useState('');
   const [email, setEmail] = useState('');
   const [pickupTime, setPickupTime] = useState('');
@@ -104,6 +106,15 @@ export default function EmailForm() {
       if (logError) {
         console.error('Error logging email:', logError);
       }
+
+      // Log to Google Sheets
+      logToSheets({
+        event_type: 'email_sent',
+        guide_email: user.email || '',
+        customer_email: email.trim(),
+        customer_language: language,
+        pickup_time: pickupTime,
+      });
 
       toast.success('تم إرسال البيانات بنجاح! ✉️');
       
