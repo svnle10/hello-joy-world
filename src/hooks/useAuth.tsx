@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(!!data);
   };
 
-  const logLoginToSheets = useCallback(async (userEmail: string) => {
+  const logLoginToSheets = useCallback(async (userEmail: string, userName: string) => {
     try {
       const { data } = await supabase
         .from('app_settings')
@@ -69,14 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (data?.value) {
+        const now = new Date();
+        const timeOnly = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        
         fetch(data.value, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           mode: 'no-cors',
           body: JSON.stringify({
-            '#Date': new Date().toISOString().split('T')[0],
-            '#Operation_Time': new Date().toISOString(),
-            '#Guide': userEmail,
+            '#Date': now.toISOString().split('T')[0],
+            '#Operation_Time': timeOnly,
+            '#Guide': userName || userEmail,
             '#Activity': 'تسجيل دخول (Login)',
           }),
         }).catch(err => console.error('Login log error:', err));
@@ -93,7 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (!error && data?.user) {
-      logLoginToSheets(email);
+      // Fetch user's name for logging
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+      
+      logLoginToSheets(email, profileData?.full_name || '');
     }
     
     return { error: error as Error | null };

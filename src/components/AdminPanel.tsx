@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,12 +36,14 @@ interface Report {
 }
 
 export default function AdminPanel() {
+  const { logDeleteToSheets } = useSheetsLogger();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
+  const [deletingReport, setDeletingReport] = useState<string | null>(null);
   
   // New guide form
   const [newEmail, setNewEmail] = useState('');
@@ -206,6 +209,42 @@ export default function AdminPanel() {
       toast.error(error.message || 'حدث خطأ في حذف المرشد');
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleDeleteReport = async (report: Report) => {
+    setDeletingReport(report.id);
+
+    try {
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('daily_reports')
+        .delete()
+        .eq('id', report.id);
+
+      if (deleteError) throw deleteError;
+
+      const now = new Date();
+      const timeOnly = formatTimeOnly(now);
+      const guideName = (report.profiles as any)?.full_name || 'غير معروف';
+      const activityName = (report.activity_options as any)?.name_ar || 'غير معروف';
+
+      // Log deletion to Google Sheets
+      logDeleteToSheets({
+        '#Date': now.toISOString().split('T')[0],
+        '#Operation_Time': timeOnly,
+        '#Guide': guideName,
+        '#Activity': `حذف من الإدارة: ${activityName}`,
+      });
+
+      // Update local state
+      setReports(prev => prev.filter(r => r.id !== report.id));
+      toast.success('تم حذف التقرير بنجاح');
+    } catch (error: any) {
+      console.error('Error deleting report:', error);
+      toast.error(error.message || 'حدث خطأ في حذف التقرير');
+    } finally {
+      setDeletingReport(null);
     }
   };
 
@@ -409,6 +448,7 @@ export default function AdminPanel() {
                     <TableHead className="text-right font-arabic">النشاط</TableHead>
                     <TableHead className="text-right font-arabic">الوقت</TableHead>
                     <TableHead className="text-right font-arabic">التاريخ</TableHead>
+                    <TableHead className="text-right font-arabic">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -429,11 +469,46 @@ export default function AdminPanel() {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(report.report_date), 'dd/MM/yyyy')}
                       </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              disabled={deletingReport === report.id}
+                            >
+                              {deletingReport === report.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="font-arabic">حذف التقرير</AlertDialogTitle>
+                              <AlertDialogDescription className="font-arabic">
+                                هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="flex-row-reverse gap-2">
+                              <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteReport(report)}
+                                className="bg-destructive hover:bg-destructive/90 font-arabic"
+                              >
+                                حذف
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {reports.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground font-arabic py-8">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground font-arabic py-8">
                         لا توجد تقارير حالياً
                       </TableCell>
                     </TableRow>
