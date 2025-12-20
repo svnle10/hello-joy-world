@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.create-guide]
 verify_jwt = true
+
+[functions.get-whatsapp-groups]
+verify_jwt = false
