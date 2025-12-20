@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useSheetsLogger } from '@/hooks/useSheetsLogger';
+import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,24 +34,26 @@ export default function EmailForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [loadingWebhook, setLoadingWebhook] = useState(true);
+  const [guideName, setGuideName] = useState<string>('');
 
   useEffect(() => {
-    const fetchWebhookUrl = async () => {
+    const fetchData = async () => {
       if (!user) return;
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('webhook_url')
+        .select('webhook_url, full_name')
         .eq('user_id', user.id)
         .maybeSingle();
       
       if (!error && data) {
         setWebhookUrl(data.webhook_url);
+        setGuideName(data.full_name || '');
       }
       setLoadingWebhook(false);
     };
 
-    fetchWebhookUrl();
+    fetchData();
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,11 +109,14 @@ export default function EmailForm() {
         console.error('Error logging email:', logError);
       }
 
-      // Log to Google Sheets
+      const now = new Date();
+      const timeOnly = formatTimeOnly(now);
+
+      // Log to Google Sheets with guide name and formatted time
       logToSheets({
-        '#Date': new Date().toISOString().split('T')[0],
-        '#Operation_Time': new Date().toISOString(),
-        '#Guide': user.email || '',
+        '#Date': now.toISOString().split('T')[0],
+        '#Operation_Time': timeOnly,
+        '#Guide': guideName || user.email || '',
         '#Customer_Email': email.trim(),
         '#Pickup_Time': pickupTime,
         '#Customer_Language': language,

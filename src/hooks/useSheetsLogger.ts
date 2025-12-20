@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
-export type LogEventType = 'activity_completed' | 'email_sent' | 'user_login';
+export type LogEventType = 'activity_completed' | 'email_sent' | 'user_login' | 'activity_deleted';
 
 interface LogData {
   '#Date': string;
@@ -13,30 +14,42 @@ interface LogData {
   '#Customer_Language'?: string;
 }
 
+// Helper to format time as HH:mm
+export function formatTimeOnly(date: Date): string {
+  return format(date, 'HH:mm');
+}
+
 export function useSheetsLogger() {
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [deleteWebhookUrl, setDeleteWebhookUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchWebhookUrl = async () => {
+    const fetchWebhookUrls = async () => {
       try {
         const { data, error } = await supabase
           .from('app_settings')
-          .select('value')
-          .eq('key', 'sheets_webhook_url')
-          .maybeSingle();
+          .select('key, value')
+          .in('key', ['sheets_webhook_url', 'sheets_delete_webhook_url']);
 
-        if (!error && data?.value) {
-          setWebhookUrl(data.value);
+        if (!error && data) {
+          data.forEach((setting) => {
+            if (setting.key === 'sheets_webhook_url' && setting.value) {
+              setWebhookUrl(setting.value);
+            }
+            if (setting.key === 'sheets_delete_webhook_url' && setting.value) {
+              setDeleteWebhookUrl(setting.value);
+            }
+          });
         }
       } catch (err) {
-        console.error('Error fetching sheets webhook URL:', err);
+        console.error('Error fetching sheets webhook URLs:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchWebhookUrl();
+    fetchWebhookUrls();
   }, []);
 
   const logToSheets = useCallback(async (data: LogData): Promise<boolean> => {
@@ -60,5 +73,26 @@ export function useSheetsLogger() {
     }
   }, [webhookUrl]);
 
-  return { logToSheets, webhookUrl, loading };
+  const logDeleteToSheets = useCallback(async (data: LogData): Promise<boolean> => {
+    if (!deleteWebhookUrl) {
+      console.log('Delete webhook not configured, skipping log');
+      return false;
+    }
+
+    try {
+      await fetch(deleteWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
+        body: JSON.stringify(data),
+      });
+      console.log('Delete event logged to Google Sheets');
+      return true;
+    } catch (err) {
+      console.error('Error logging delete to Google Sheets:', err);
+      return false;
+    }
+  }, [deleteWebhookUrl]);
+
+  return { logToSheets, logDeleteToSheets, webhookUrl, deleteWebhookUrl, loading };
 }
