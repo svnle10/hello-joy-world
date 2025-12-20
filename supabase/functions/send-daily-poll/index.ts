@@ -32,7 +32,7 @@ serve(async (req) => {
     const pollData = {
       to: groupJid,
       poll: {
-        name: `📝 Daily Guide Report ✅ Activity ${dateStr}`,
+        question: `📝 Daily Guide Report ✅ Activity ${dateStr}`,
         options: [
           "☎️ Customer Contacted (Confirm)",
           "🚐 Departure to camp",
