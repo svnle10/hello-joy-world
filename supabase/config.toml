@@ -3,5 +3,8 @@ project_id = "jvwwynlzmyiwhyjcneck"
 [functions.setup-admin]
 verify_jwt = false
 
+[functions.setup-guides]
+verify_jwt = false
+
 [functions.create-guide]
 verify_jwt = true

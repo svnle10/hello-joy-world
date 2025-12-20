@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Send, Mail, Clock, Globe } from 'lucide-react';
+import { Loader2, Send, Mail, Clock, Globe, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.object({
@@ -27,16 +27,33 @@ const languages = [
   { value: 'arabic', label: 'العربية', flag: '🇸🇦' },
 ];
 
-interface EmailFormProps {
-  n8nWebhookUrl?: string;
-}
-
-export default function EmailForm({ n8nWebhookUrl }: EmailFormProps) {
+export default function EmailForm() {
   const { user } = useAuth();
   const [language, setLanguage] = useState('');
   const [email, setEmail] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [loadingWebhook, setLoadingWebhook] = useState(true);
+
+  useEffect(() => {
+    const fetchWebhookUrl = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('webhook_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setWebhookUrl(data.webhook_url);
+      }
+      setLoadingWebhook(false);
+    };
+
+    fetchWebhookUrl();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,28 +69,29 @@ export default function EmailForm({ n8nWebhookUrl }: EmailFormProps) {
       return;
     }
 
+    if (!webhookUrl) {
+      toast.error('لم يتم تكوين رابط الإرسال الخاص بك. تواصل مع المدير.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Send to n8n webhook if configured
-      const webhookUrl = n8nWebhookUrl || import.meta.env.VITE_N8N_WEBHOOK_URL;
-      
-      if (webhookUrl) {
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            language,
-            email: email.trim(),
-            pickupTime: pickupTime,
-          }),
-        });
+      // Send to n8n webhook
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          language,
+          email: email.trim(),
+          pickupTime: pickupTime,
+        }),
+      });
 
-        if (!response.ok) {
-          throw new Error('فشل إرسال البيانات إلى n8n');
-        }
+      if (!response.ok) {
+        throw new Error('فشل إرسال البيانات');
       }
 
       // Log the email in database
@@ -104,6 +122,16 @@ export default function EmailForm({ n8nWebhookUrl }: EmailFormProps) {
     }
   };
 
+  if (loadingWebhook) {
+    return (
+      <Card className="max-w-lg mx-auto border-primary/20 shadow-xl">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="max-w-lg mx-auto border-primary/20 shadow-xl">
       <CardHeader className="text-center pb-2">
@@ -118,84 +146,96 @@ export default function EmailForm({ n8nWebhookUrl }: EmailFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Language Selection */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2 font-arabic">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              لغة الزبون
-            </Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder="اختر اللغة..." />
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    <span className="flex items-center gap-2">
-                      <span>{lang.flag}</span>
-                      <span>{lang.label}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Email Input */}
-          <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-2 font-arabic">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              البريد الإلكتروني للزبون
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="customer@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="h-12 text-left"
-              dir="ltr"
-            />
-          </div>
-
-          {/* Pickup Time */}
-          <div className="space-y-2">
-            <Label htmlFor="pickupTime" className="flex items-center gap-2 font-arabic">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              وقت الاستلام
-            </Label>
-            <Input
-              id="pickupTime"
-              type="text"
-              placeholder="مثال: 3 أو 15 (بدون PM أو AM)"
-              value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value.replace(/\D/g, '').slice(0, 2))}
-              required
-              className="h-12 text-left"
-              dir="ltr"
-            />
-            <p className="text-xs text-muted-foreground font-arabic">
-              أدخل الوقت كرقم فقط (من 0 إلى 23)
+        {!webhookUrl ? (
+          <div className="text-center py-6">
+            <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
+            <p className="text-muted-foreground font-arabic">
+              لم يتم تكوين رابط الإرسال الخاص بك بعد.
+            </p>
+            <p className="text-sm text-muted-foreground font-arabic mt-2">
+              تواصل مع المدير لإضافة الرابط.
             </p>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Language Selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 font-arabic">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                لغة الزبون
+              </Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="اختر اللغة..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      <span className="flex items-center gap-2">
+                        <span>{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Button
-            type="submit"
-            className="w-full h-12 gradient-sunset hover:opacity-90 transition-opacity font-arabic text-base"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <>
-                <Send className="h-5 w-5 ml-2" />
-                إرسال
-              </>
-            )}
-          </Button>
-        </form>
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-2 font-arabic">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                البريد الإلكتروني للزبون
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="customer@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12 text-left"
+                dir="ltr"
+              />
+            </div>
+
+            {/* Pickup Time */}
+            <div className="space-y-2">
+              <Label htmlFor="pickupTime" className="flex items-center gap-2 font-arabic">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                وقت الاستلام
+              </Label>
+              <Input
+                id="pickupTime"
+                type="text"
+                placeholder="مثال: 3 أو 15 (بدون PM أو AM)"
+                value={pickupTime}
+                onChange={(e) => setPickupTime(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                required
+                className="h-12 text-left"
+                dir="ltr"
+              />
+              <p className="text-xs text-muted-foreground font-arabic">
+                أدخل الوقت كرقم فقط (من 0 إلى 23)
+              </p>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 gradient-sunset hover:opacity-90 transition-opacity font-arabic text-base"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <Send className="h-5 w-5 ml-2" />
+                  إرسال
+                </>
+              )}
+            </Button>
+          </form>
+        )}
       </CardContent>
     </Card>
   );
