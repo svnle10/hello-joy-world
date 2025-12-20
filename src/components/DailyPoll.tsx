@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2, Circle, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +44,7 @@ export default function DailyPoll() {
   const [guideName, setGuideName] = useState<string>('');
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const todayArabic = format(new Date(), 'dd/MM/yyyy', { locale: ar });
+  const todayFormatted = format(new Date(), 'dd/MM/yyyy');
 
   useEffect(() => {
     fetchData();
@@ -87,7 +86,7 @@ export default function DailyPoll() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('حدث خطأ في تحميل البيانات');
+      toast.error('Error loading data');
     } finally {
       setLoading(false);
     }
@@ -129,7 +128,7 @@ export default function DailyPoll() {
         '#Date': today,
         '#Operation_Time': timeOnly,
         '#Guide': guideName || user.email || '',
-        '#Activity': `${activity.name_ar} (${activity.name})`,
+        '#Activity': `${activity.name} (${activity.name_ar})`,
       });
 
       // Update local state
@@ -138,10 +137,10 @@ export default function DailyPoll() {
         { activity_id: activity.id, completed_at: completedAt }
       ]);
 
-      toast.success(`✅ ${activity.name_ar}`);
+      toast.success(`✅ ${activity.name}`);
     } catch (error) {
       console.error('Error submitting activity:', error);
-      toast.error('حدث خطأ في التسجيل');
+      toast.error('Error recording activity');
     } finally {
       setSubmitting(null);
     }
@@ -172,7 +171,7 @@ export default function DailyPoll() {
         '#Date': today,
         '#Operation_Time': timeOnly,
         '#Guide': guideName || user.email || '',
-        '#Activity': `حذف: ${activityToDelete.name_ar} (${activityToDelete.name})`,
+        '#Activity': `Delete: ${activityToDelete.name} (${activityToDelete.name_ar})`,
       });
 
       // Update local state
@@ -180,10 +179,10 @@ export default function DailyPoll() {
         prev.filter(c => c.activity_id !== activityToDelete.id)
       );
 
-      toast.success(`تم إلغاء: ${activityToDelete.name_ar}`);
+      toast.success(`Cancelled: ${activityToDelete.name}`);
     } catch (error) {
       console.error('Error deleting activity:', error);
-      toast.error('حدث خطأ في الإلغاء');
+      toast.error('Error cancelling activity');
     } finally {
       setDeleting(null);
       setActivityToDelete(null);
@@ -212,15 +211,15 @@ export default function DailyPoll() {
             <span className="text-2xl">📋</span>
             <Calendar className="h-5 w-5 text-primary" />
           </div>
-          <CardTitle className="text-xl font-bold font-arabic flex items-center justify-center gap-2">
-            <span>التقرير اليومي</span>
+          <CardTitle className="text-xl font-bold flex items-center justify-center gap-2">
+            <span>Daily Report</span>
             <span className="text-success">✅</span>
           </CardTitle>
-          <CardDescription className="font-arabic text-base">
-            نشاط {todayArabic}
+          <CardDescription className="text-base">
+            Activity for {todayFormatted}
           </CardDescription>
-          <p className="text-xs text-muted-foreground font-arabic mt-1">
-            اضغط على النشاط لتسجيله أو إلغائه
+          <p className="text-xs text-muted-foreground mt-1">
+            Click on an activity to record or cancel it
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -254,12 +253,12 @@ export default function DailyPoll() {
                   
                   <span className="text-xl shrink-0">{activity.emoji}</span>
                   
-                  <div className="flex-1 text-right">
-                    <p className={`font-arabic text-sm ${isCompleted ? 'text-success font-medium' : 'text-foreground'}`}>
-                      {activity.name_ar}
+                  <div className="flex-1 text-left">
+                    <p className={`text-sm ${isCompleted ? 'text-success font-medium' : 'text-foreground'}`}>
+                      {activity.name}
                     </p>
                     {isCompleted && completedTime && (
-                      <p className="text-xs text-success/80 font-arabic mt-0.5">
+                      <p className="text-xs text-success/80 mt-0.5">
                         ⏰ {completedTime}
                       </p>
                     )}
@@ -279,8 +278,8 @@ export default function DailyPoll() {
 
           {/* Progress indicator */}
           <div className="pt-4 border-t border-border">
-            <div className="flex items-center justify-between text-sm font-arabic">
-              <span className="text-muted-foreground">التقدم</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
               <span className="text-primary font-medium">
                 {completedActivities.length} / {activities.length}
               </span>
@@ -301,22 +300,22 @@ export default function DailyPoll() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-arabic text-right">
-              إلغاء النشاط؟
+            <AlertDialogTitle>
+              Cancel Activity?
             </AlertDialogTitle>
-            <AlertDialogDescription className="font-arabic text-right">
-              هل تريد إلغاء تسجيل "{activityToDelete?.name_ar}"؟
+            <AlertDialogDescription>
+              Do you want to cancel "{activityToDelete?.name}"?
               <br />
-              سيتم حذفه من قاعدة البيانات.
+              It will be deleted from the database.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteActivity}
-              className="bg-destructive hover:bg-destructive/90 font-arabic"
+              className="bg-destructive hover:bg-destructive/90"
             >
-              نعم، احذف
+              Yes, Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

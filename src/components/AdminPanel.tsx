@@ -12,7 +12,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings } from 'lucide-react';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
 import SheetsWebhookSettings from './SheetsWebhookSettings';
 
 interface Guide {
@@ -98,13 +97,13 @@ export default function AdminPanel() {
       
       const enrichedReports = (reportsData || []).map(r => ({
         ...r,
-        profiles: { full_name: guideMap.get(r.guide_id) || 'غير معروف' }
+        profiles: { full_name: guideMap.get(r.guide_id) || 'Unknown' }
       }));
       
       setReports(enrichedReports as Report[]);
     } catch (error) {
       console.error('Error fetching admin data:', error);
-      toast.error('حدث خطأ في تحميل البيانات');
+      toast.error('Error loading data');
     } finally {
       setLoading(false);
     }
@@ -114,7 +113,7 @@ export default function AdminPanel() {
     e.preventDefault();
     
     if (!newEmail || !newPassword || !newName) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -132,7 +131,7 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
-      toast.success('تم إنشاء المرشد بنجاح');
+      toast.success('Guide created successfully');
       setIsDialogOpen(false);
       setNewEmail('');
       setNewPassword('');
@@ -141,7 +140,7 @@ export default function AdminPanel() {
       fetchData();
     } catch (error: any) {
       console.error('Error creating guide:', error);
-      toast.error(error.message || 'حدث خطأ في إنشاء المرشد');
+      toast.error(error.message || 'Error creating guide');
     } finally {
       setCreating(false);
     }
@@ -159,7 +158,7 @@ export default function AdminPanel() {
     e.preventDefault();
     
     if (!selectedGuide || !editName) {
-      toast.error('يرجى ملء الاسم');
+      toast.error('Please fill in the name');
       return;
     }
 
@@ -177,13 +176,13 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
-      toast.success('تم تحديث بيانات المرشد');
+      toast.success('Guide updated successfully');
       setIsEditDialogOpen(false);
       setSelectedGuide(null);
       fetchData();
     } catch (error: any) {
       console.error('Error updating guide:', error);
-      toast.error(error.message || 'حدث خطأ في تحديث البيانات');
+      toast.error(error.message || 'Error updating guide');
     } finally {
       setUpdating(false);
     }
@@ -202,11 +201,11 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
-      toast.success('تم حذف المرشد بنجاح');
+      toast.success('Guide deleted successfully');
       fetchData();
     } catch (error: any) {
       console.error('Error deleting guide:', error);
-      toast.error(error.message || 'حدث خطأ في حذف المرشد');
+      toast.error(error.message || 'Error deleting guide');
     } finally {
       setDeleting(null);
     }
@@ -226,23 +225,23 @@ export default function AdminPanel() {
 
       const now = new Date();
       const timeOnly = formatTimeOnly(now);
-      const guideName = (report.profiles as any)?.full_name || 'غير معروف';
-      const activityName = (report.activity_options as any)?.name_ar || 'غير معروف';
+      const guideName = (report.profiles as any)?.full_name || 'Unknown';
+      const activityName = (report.activity_options as any)?.name_ar || 'Unknown';
 
       // Log deletion to Google Sheets
       logDeleteToSheets({
         '#Date': now.toISOString().split('T')[0],
         '#Operation_Time': timeOnly,
         '#Guide': guideName,
-        '#Activity': `حذف من الإدارة: ${activityName}`,
+        '#Activity': `Admin Delete: ${activityName}`,
       });
 
       // Update local state
       setReports(prev => prev.filter(r => r.id !== report.id));
-      toast.success('تم حذف التقرير بنجاح');
+      toast.success('Report deleted successfully');
     } catch (error: any) {
       console.error('Error deleting report:', error);
-      toast.error(error.message || 'حدث خطأ في حذف التقرير');
+      toast.error(error.message || 'Error deleting report');
     } finally {
       setDeletingReport(null);
     }
@@ -260,17 +259,17 @@ export default function AdminPanel() {
     <div className="space-y-6">
       <Tabs defaultValue="guides" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-          <TabsTrigger value="guides" className="flex items-center gap-2 py-2 font-arabic">
+          <TabsTrigger value="guides" className="flex items-center gap-2 py-2">
             <Users className="h-4 w-4" />
-            المرشدين
+            Guides
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2 py-2 font-arabic">
+          <TabsTrigger value="reports" className="flex items-center gap-2 py-2">
             <BarChart3 className="h-4 w-4" />
-            التقارير
+            Reports
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2 py-2 font-arabic">
+          <TabsTrigger value="settings" className="flex items-center gap-2 py-2">
             <Settings className="h-4 w-4" />
-            الإعدادات
+            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -279,37 +278,36 @@ export default function AdminPanel() {
           <Card className="border-primary/20">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="font-arabic">المرشدين السياحيين</CardTitle>
-                <CardDescription className="font-arabic">
-                  إدارة حسابات المرشدين
+                <CardTitle>Tour Guides</CardTitle>
+                <CardDescription>
+                  Manage guide accounts
                 </CardDescription>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="gradient-sunset font-arabic">
-                    <UserPlus className="h-4 w-4 ml-2" />
-                    إضافة مرشد
+                  <Button className="gradient-sunset">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Guide
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle className="font-arabic">إضافة مرشد جديد</DialogTitle>
-                    <DialogDescription className="font-arabic">
-                      أدخل بيانات المرشد الجديد
+                    <DialogTitle>Add New Guide</DialogTitle>
+                    <DialogDescription>
+                      Enter the new guide's information
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateGuide} className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="font-arabic">الاسم الكامل *</Label>
+                      <Label>Full Name *</Label>
                       <Input
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        placeholder="محمد أحمد"
-                        className="font-arabic"
+                        placeholder="John Smith"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-arabic">البريد الإلكتروني *</Label>
+                      <Label>Email *</Label>
                       <Input
                         type="email"
                         value={newEmail}
@@ -319,17 +317,17 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-arabic">كلمة المرور *</Label>
+                      <Label>Password *</Label>
                       <Input
                         type="text"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="كلمة مرور مؤقتة"
+                        placeholder="Temporary password"
                         dir="ltr"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-arabic">رابط Webhook (اختياري)</Label>
+                      <Label>Webhook URL (optional)</Label>
                       <Input
                         type="url"
                         value={newWebhook}
@@ -339,11 +337,11 @@ export default function AdminPanel() {
                       />
                     </div>
                     <DialogFooter>
-                      <Button type="submit" disabled={creating} className="gradient-sunset font-arabic">
+                      <Button type="submit" disabled={creating} className="gradient-sunset">
                         {creating ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          'إنشاء الحساب'
+                          'Create Account'
                         )}
                       </Button>
                     </DialogFooter>
@@ -355,21 +353,21 @@ export default function AdminPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right font-arabic">الاسم</TableHead>
-                    <TableHead className="text-right font-arabic">الهاتف</TableHead>
-                    <TableHead className="text-right font-arabic">تاريخ الإنشاء</TableHead>
-                    <TableHead className="text-right font-arabic">الإجراءات</TableHead>
+                    <TableHead className="text-left">Name</TableHead>
+                    <TableHead className="text-left">Phone</TableHead>
+                    <TableHead className="text-left">Created</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {guides.map((guide) => (
                     <TableRow key={guide.id}>
-                      <TableCell className="font-arabic font-medium">{guide.full_name}</TableCell>
+                      <TableCell className="font-medium">{guide.full_name}</TableCell>
                       <TableCell className="text-muted-foreground" dir="ltr">
                         {guide.phone || '-'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {format(new Date(guide.created_at), 'dd/MM/yyyy', { locale: ar })}
+                        {format(new Date(guide.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -398,18 +396,18 @@ export default function AdminPanel() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle className="font-arabic">حذف المرشد</AlertDialogTitle>
-                                <AlertDialogDescription className="font-arabic">
-                                  هل أنت متأكد من حذف "{guide.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.
+                                <AlertDialogTitle>Delete Guide</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{guide.full_name}"? This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
-                              <AlertDialogFooter className="flex-row-reverse gap-2">
-                                <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+                              <AlertDialogFooter className="gap-2">
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleDeleteGuide(guide)}
-                                  className="bg-destructive hover:bg-destructive/90 font-arabic"
+                                  className="bg-destructive hover:bg-destructive/90"
                                 >
-                                  حذف
+                                  Delete
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -420,8 +418,8 @@ export default function AdminPanel() {
                   ))}
                   {guides.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground font-arabic py-8">
-                        لا يوجد مرشدين حالياً
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        No guides yet
                       </TableCell>
                     </TableRow>
                   )}
@@ -435,30 +433,30 @@ export default function AdminPanel() {
         <TabsContent value="reports">
           <Card className="border-primary/20">
             <CardHeader>
-              <CardTitle className="font-arabic">التقارير الأخيرة</CardTitle>
-              <CardDescription className="font-arabic">
-                آخر 50 نشاط تم تسجيله
+              <CardTitle>Recent Reports</CardTitle>
+              <CardDescription>
+                Last 50 recorded activities
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right font-arabic">المرشد</TableHead>
-                    <TableHead className="text-right font-arabic">النشاط</TableHead>
-                    <TableHead className="text-right font-arabic">الوقت</TableHead>
-                    <TableHead className="text-right font-arabic">التاريخ</TableHead>
-                    <TableHead className="text-right font-arabic">الإجراءات</TableHead>
+                    <TableHead className="text-left">Guide</TableHead>
+                    <TableHead className="text-left">Activity</TableHead>
+                    <TableHead className="text-left">Time</TableHead>
+                    <TableHead className="text-left">Date</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reports.map((report) => (
                     <TableRow key={report.id}>
-                      <TableCell className="font-arabic">
-                        {(report.profiles as any)?.full_name || 'غير معروف'}
+                      <TableCell>
+                        {(report.profiles as any)?.full_name || 'Unknown'}
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-2 font-arabic">
+                        <span className="flex items-center gap-2">
                           <span>{(report.activity_options as any)?.emoji}</span>
                           <span>{(report.activity_options as any)?.name_ar}</span>
                         </span>
@@ -487,18 +485,18 @@ export default function AdminPanel() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle className="font-arabic">حذف التقرير</AlertDialogTitle>
-                              <AlertDialogDescription className="font-arabic">
-                                هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.
+                              <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this report? This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter className="flex-row-reverse gap-2">
-                              <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+                            <AlertDialogFooter className="gap-2">
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteReport(report)}
-                                className="bg-destructive hover:bg-destructive/90 font-arabic"
+                                className="bg-destructive hover:bg-destructive/90"
                               >
-                                حذف
+                                Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -508,8 +506,8 @@ export default function AdminPanel() {
                   ))}
                   {reports.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground font-arabic py-8">
-                        لا توجد تقارير حالياً
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        No reports yet
                       </TableCell>
                     </TableRow>
                   )}
@@ -531,32 +529,31 @@ export default function AdminPanel() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-arabic">تعديل بيانات المرشد</DialogTitle>
-            <DialogDescription className="font-arabic">
-              تعديل بيانات "{selectedGuide?.full_name}"
+            <DialogTitle>Edit Guide</DialogTitle>
+            <DialogDescription>
+              Edit "{selectedGuide?.full_name}"
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateGuide} className="space-y-4">
             <div className="space-y-2">
-              <Label className="font-arabic">الاسم الكامل</Label>
+              <Label>Full Name</Label>
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="font-arabic"
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-arabic">رقم الهاتف</Label>
+              <Label>Phone Number</Label>
               <Input
                 type="tel"
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                placeholder="+212 600 000 000"
+                placeholder="+1 234 567 890"
                 dir="ltr"
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-arabic">رابط Webhook</Label>
+              <Label>Webhook URL</Label>
               <Input
                 type="url"
                 value={editWebhook}
@@ -566,11 +563,11 @@ export default function AdminPanel() {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={updating} className="gradient-sunset font-arabic">
+              <Button type="submit" disabled={updating} className="gradient-sunset">
                 {updating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  'حفظ التغييرات'
+                  'Save Changes'
                 )}
               </Button>
             </DialogFooter>

@@ -35,11 +35,11 @@ export default function Dashboard() {
                 <span className="text-xl">🏜️</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-primary-foreground font-arabic">
+                <h1 className="text-lg font-bold text-primary-foreground">
                   Sun Sky Camp
                 </h1>
-                <p className="text-xs text-primary-foreground/80 font-arabic">
-                  لوحة تحكم المرشدين
+                <p className="text-xs text-primary-foreground/80">
+                  Guide Dashboard
                 </p>
               </div>
             </div>
@@ -49,8 +49,8 @@ export default function Dashboard() {
               onClick={signOut}
               className="text-primary-foreground hover:bg-primary-foreground/10"
             >
-              <LogOut className="h-4 w-4 ml-2" />
-              <span className="font-arabic hidden sm:inline">خروج</span>
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
@@ -62,27 +62,27 @@ export default function Dashboard() {
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 h-auto p-1 bg-muted/50">
             <TabsTrigger
               value="poll"
-              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground font-arabic"
+              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <ClipboardCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">التقرير اليومي</span>
-              <span className="sm:hidden">التقرير</span>
+              <span className="hidden sm:inline">Daily Report</span>
+              <span className="sm:hidden">Report</span>
             </TabsTrigger>
             <TabsTrigger
               value="email"
-              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground font-arabic"
+              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline">إرسال إيميل</span>
-              <span className="sm:hidden">إيميل</span>
+              <span className="hidden sm:inline">Send Email</span>
+              <span className="sm:hidden">Email</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger
                 value="admin"
-                className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground font-arabic col-span-2 lg:col-span-1"
+                className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground col-span-2 lg:col-span-1"
               >
                 <Settings className="h-4 w-4" />
-                <span>لوحة الإدارة</span>
+                <span>Admin Panel</span>
               </TabsTrigger>
             )}
           </TabsList>

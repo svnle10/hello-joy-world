@@ -46,7 +46,7 @@ export default function SheetsWebhookSettings() {
       }
     } catch (error) {
       console.error('Error fetching webhook settings:', error);
-      toast.error('حدث خطأ في تحميل الإعدادات');
+      toast.error('Error loading settings');
     } finally {
       setLoading(false);
     }
@@ -77,10 +77,10 @@ export default function SheetsWebhookSettings() {
         if (deleteError) throw deleteError;
       }
 
-      toast.success('تم حفظ الإعدادات بنجاح');
+      toast.success('Settings saved successfully');
     } catch (error: unknown) {
       console.error('Error saving webhook settings:', error);
-      toast.error('حدث خطأ في حفظ الإعدادات');
+      toast.error('Error saving settings');
     } finally {
       setSaving(false);
     }
@@ -88,7 +88,7 @@ export default function SheetsWebhookSettings() {
 
   const testWebhook = async (url: string, type: 'add' | 'delete') => {
     if (!url) {
-      toast.error('يرجى إدخال رابط webhook أولاً');
+      toast.error('Please enter a webhook URL first');
       return;
     }
 
@@ -100,15 +100,15 @@ export default function SheetsWebhookSettings() {
         body: JSON.stringify({
           '#Date': new Date().toISOString().split('T')[0],
           '#Operation_Time': new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-          '#Guide': 'اختبار',
-          '#Activity': type === 'add' ? 'اختبار الإضافة' : 'اختبار الحذف',
+          '#Guide': 'Test',
+          '#Activity': type === 'add' ? 'Test Add' : 'Test Delete',
         }),
       });
       
-      toast.success('تم إرسال اختبار! تحقق من Google Sheets');
+      toast.success('Test sent! Check Google Sheets');
     } catch (error) {
       console.error('Error testing webhook:', error);
-      toast.error('فشل اختبار الرابط');
+      toast.error('Failed to test webhook');
     }
   };
 
@@ -130,9 +130,9 @@ export default function SheetsWebhookSettings() {
             <FileSpreadsheet className="h-5 w-5 text-success" />
           </div>
           <div>
-            <CardTitle className="font-arabic text-lg">تسجيل Google Sheets</CardTitle>
-            <CardDescription className="font-arabic">
-              روابط webhook للتسجيل والحذف في جدول البيانات
+            <CardTitle className="text-lg">Google Sheets Logging</CardTitle>
+            <CardDescription>
+              Webhook URLs for logging and deleting in the spreadsheet
             </CardDescription>
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function SheetsWebhookSettings() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-success" />
-              <Label className="font-arabic">رابط إضافة البيانات (Webhook)</Label>
+              <Label>Add Data Webhook</Label>
             </div>
             <Input
               type="url"
@@ -153,8 +153,8 @@ export default function SheetsWebhookSettings() {
               dir="ltr"
               className="text-sm"
             />
-            <p className="text-xs text-muted-foreground font-arabic">
-              يُستخدم لإضافة الأنشطة والإيميلات وتسجيلات الدخول
+            <p className="text-xs text-muted-foreground">
+              Used for adding activities, emails, and logins
             </p>
             <Button
               type="button"
@@ -162,10 +162,9 @@ export default function SheetsWebhookSettings() {
               size="sm"
               onClick={() => testWebhook(webhookUrl, 'add')}
               disabled={!webhookUrl}
-              className="font-arabic"
             >
-              <CheckCircle2 className="h-4 w-4 ml-2" />
-              اختبار الإضافة
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Test Add
             </Button>
           </div>
 
@@ -173,7 +172,7 @@ export default function SheetsWebhookSettings() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive" />
-              <Label className="font-arabic">رابط حذف البيانات (Webhook)</Label>
+              <Label>Delete Data Webhook</Label>
             </div>
             <Input
               type="url"
@@ -183,8 +182,8 @@ export default function SheetsWebhookSettings() {
               dir="ltr"
               className="text-sm"
             />
-            <p className="text-xs text-muted-foreground font-arabic">
-              يُستخدم عند إلغاء أو حذف نشاط (يمكنك البحث عن الصف وحذفه)
+            <p className="text-xs text-muted-foreground">
+              Used when cancelling or deleting an activity
             </p>
             <Button
               type="button"
@@ -192,10 +191,9 @@ export default function SheetsWebhookSettings() {
               size="sm"
               onClick={() => testWebhook(deleteWebhookUrl, 'delete')}
               disabled={!deleteWebhookUrl}
-              className="font-arabic"
             >
-              <Trash2 className="h-4 w-4 ml-2" />
-              اختبار الحذف
+              <Trash2 className="h-4 w-4 mr-2" />
+              Test Delete
             </Button>
           </div>
 
@@ -203,23 +201,23 @@ export default function SheetsWebhookSettings() {
           <Button 
             type="submit" 
             disabled={saving}
-            className="w-full gradient-desert font-arabic"
+            className="w-full gradient-desert"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                <Save className="h-4 w-4 ml-2" />
-                حفظ الإعدادات
+                <Save className="h-4 w-4 mr-2" />
+                Save Settings
               </>
             )}
           </Button>
 
           {(webhookUrl || deleteWebhookUrl) && (
             <div className="p-3 bg-success/10 rounded-lg border border-success/20">
-              <p className="text-xs text-success font-arabic flex items-center gap-2">
+              <p className="text-xs text-success flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
-                سيتم تسجيل الأنشطة باسم المرشد وليس البريد الإلكتروني
+                Activities will be logged with guide name, not email
               </p>
             </div>
           )}
