@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Users, BarChart3, Trash2, Mail } from 'lucide-react';
+import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
@@ -17,6 +18,7 @@ interface Guide {
   user_id: string;
   full_name: string;
   phone: string | null;
+  webhook_url: string | null;
   created_at: string;
   email?: string;
 }
@@ -36,12 +38,22 @@ export default function AdminPanel() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   
   // New guide form
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
+  const [newWebhook, setNewWebhook] = useState('');
   const [creating, setCreating] = useState(false);
+  
+  // Edit guide form
+  const [editName, setEditName] = useState('');
+  const [editWebhook, setEditWebhook] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -98,19 +110,19 @@ export default function AdminPanel() {
     e.preventDefault();
     
     if (!newEmail || !newPassword || !newName) {
-      toast.error('يرجى ملء جميع الحقول');
+      toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
 
     setCreating(true);
 
     try {
-      // Create user via edge function (to be created)
       const { data, error } = await supabase.functions.invoke('create-guide', {
         body: {
           email: newEmail,
           password: newPassword,
           full_name: newName,
+          webhook_url: newWebhook || null,
         },
       });
 
@@ -121,12 +133,78 @@ export default function AdminPanel() {
       setNewEmail('');
       setNewPassword('');
       setNewName('');
+      setNewWebhook('');
       fetchData();
     } catch (error: any) {
       console.error('Error creating guide:', error);
       toast.error(error.message || 'حدث خطأ في إنشاء المرشد');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEditGuide = (guide: Guide) => {
+    setSelectedGuide(guide);
+    setEditName(guide.full_name);
+    setEditWebhook(guide.webhook_url || '');
+    setEditPhone(guide.phone || '');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateGuide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedGuide || !editName) {
+      toast.error('يرجى ملء الاسم');
+      return;
+    }
+
+    setUpdating(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editName,
+          webhook_url: editWebhook || null,
+          phone: editPhone || null,
+        })
+        .eq('id', selectedGuide.id);
+
+      if (error) throw error;
+
+      toast.success('تم تحديث بيانات المرشد');
+      setIsEditDialogOpen(false);
+      setSelectedGuide(null);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error updating guide:', error);
+      toast.error(error.message || 'حدث خطأ في تحديث البيانات');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteGuide = async (guide: Guide) => {
+    setDeleting(guide.id);
+
+    try {
+      const { error } = await supabase.functions.invoke('create-guide', {
+        body: {
+          action: 'delete',
+          user_id: guide.user_id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('تم حذف المرشد بنجاح');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting guide:', error);
+      toast.error(error.message || 'حدث خطأ في حذف المرشد');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -178,7 +256,7 @@ export default function AdminPanel() {
                   </DialogHeader>
                   <form onSubmit={handleCreateGuide} className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="font-arabic">الاسم الكامل</Label>
+                      <Label className="font-arabic">الاسم الكامل *</Label>
                       <Input
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
@@ -187,22 +265,32 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-arabic">البريد الإلكتروني</Label>
+                      <Label className="font-arabic">البريد الإلكتروني *</Label>
                       <Input
                         type="email"
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
-                        placeholder="guide@example.com"
+                        placeholder="guide@gmail.com"
                         dir="ltr"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-arabic">كلمة المرور</Label>
+                      <Label className="font-arabic">كلمة المرور *</Label>
                       <Input
                         type="text"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="كلمة مرور مؤقتة"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-arabic">رابط Webhook (اختياري)</Label>
+                      <Input
+                        type="url"
+                        value={newWebhook}
+                        onChange={(e) => setNewWebhook(e.target.value)}
+                        placeholder="https://n8n.example.com/form/..."
                         dir="ltr"
                       />
                     </div>
@@ -224,21 +312,71 @@ export default function AdminPanel() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-right font-arabic">الاسم</TableHead>
+                    <TableHead className="text-right font-arabic">الهاتف</TableHead>
                     <TableHead className="text-right font-arabic">تاريخ الإنشاء</TableHead>
+                    <TableHead className="text-right font-arabic">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {guides.map((guide) => (
                     <TableRow key={guide.id}>
                       <TableCell className="font-arabic font-medium">{guide.full_name}</TableCell>
+                      <TableCell className="text-muted-foreground" dir="ltr">
+                        {guide.phone || '-'}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(guide.created_at), 'dd/MM/yyyy', { locale: ar })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEditGuide(guide)}
+                            className="h-8 w-8"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                disabled={deleting === guide.id}
+                              >
+                                {deleting === guide.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="font-arabic">حذف المرشد</AlertDialogTitle>
+                                <AlertDialogDescription className="font-arabic">
+                                  هل أنت متأكد من حذف "{guide.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="flex-row-reverse gap-2">
+                                <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteGuide(guide)}
+                                  className="bg-destructive hover:bg-destructive/90 font-arabic"
+                                >
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                   {guides.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center text-muted-foreground font-arabic py-8">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground font-arabic py-8">
                         لا يوجد مرشدين حالياً
                       </TableCell>
                     </TableRow>
@@ -301,6 +439,57 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-arabic">تعديل بيانات المرشد</DialogTitle>
+            <DialogDescription className="font-arabic">
+              تعديل بيانات "{selectedGuide?.full_name}"
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateGuide} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-arabic">الاسم الكامل</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="font-arabic"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-arabic">رقم الهاتف</Label>
+              <Input
+                type="tel"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="+212 600 000 000"
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-arabic">رابط Webhook</Label>
+              <Input
+                type="url"
+                value={editWebhook}
+                onChange={(e) => setEditWebhook(e.target.value)}
+                placeholder="https://n8n.example.com/form/..."
+                dir="ltr"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={updating} className="gradient-sunset font-arabic">
+                {updating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'حفظ التغييرات'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
