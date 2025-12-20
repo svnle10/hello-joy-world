@@ -180,7 +180,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      email_logs_secure: {
+        Row: {
+          customer_email: string | null
+          customer_language: string | null
+          guide_id: string | null
+          id: string | null
+          pickup_time: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          customer_email?: never
+          customer_language?: string | null
+          guide_id?: string | null
+          id?: string | null
+          pickup_time?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          customer_email?: never
+          customer_language?: string | null
+          guide_id?: string | null
+          id?: string | null
+          pickup_time?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -190,6 +216,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      mask_email: { Args: { email_address: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "guide"
