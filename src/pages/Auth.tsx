@@ -10,8 +10,8 @@ import { Loader2, Sun, Mountain } from 'lucide-react';
 import { z } from 'zod';
 
 const loginSchema = z.object({
-  email: z.string().email('البريد الإلكتروني غير صالح'),
-  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 export default function Auth() {
@@ -46,12 +46,12 @@ export default function Auth() {
     
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
-        toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        toast.error('Invalid email or password');
       } else {
-        toast.error('حدث خطأ أثناء تسجيل الدخول');
+        toast.error('An error occurred while signing in');
       }
     } else {
-      toast.success('تم تسجيل الدخول بنجاح');
+      toast.success('Signed in successfully');
     }
     setIsLoading(false);
   };
@@ -71,17 +71,17 @@ export default function Auth() {
           <div className="mx-auto w-16 h-16 rounded-full gradient-sunset flex items-center justify-center shadow-lg">
             <span className="text-3xl">🏜️</span>
           </div>
-          <CardTitle className="text-2xl font-bold font-arabic">
+          <CardTitle className="text-2xl font-bold">
             Sun Sky Camp
           </CardTitle>
-          <CardDescription className="font-arabic text-muted-foreground">
-            تسجيل دخول المرشدين السياحيين
+          <CardDescription className="text-muted-foreground">
+            Tour Guide Login
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="font-arabic">البريد الإلكتروني</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -94,7 +94,7 @@ export default function Auth() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="font-arabic">كلمة المرور</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -107,13 +107,13 @@ export default function Auth() {
             </div>
             <Button
               type="submit"
-              className="w-full gradient-sunset hover:opacity-90 transition-opacity font-arabic"
+              className="w-full gradient-sunset hover:opacity-90 transition-opacity"
               disabled={isLoading}
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'تسجيل الدخول'
+                'Sign In'
               )}
             </Button>
           </form>
