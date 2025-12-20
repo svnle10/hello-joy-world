@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { isValidWebhookUrl } from '@/lib/webhookValidator';
 
 export type LogEventType = 'activity_completed' | 'email_sent' | 'user_login' | 'activity_deleted';
 
@@ -58,6 +59,13 @@ export function useSheetsLogger() {
       return false;
     }
 
+    // Validate URL before making request (SSRF protection)
+    const validation = isValidWebhookUrl(webhookUrl);
+    if (!validation.valid) {
+      console.error('Invalid webhook URL:', validation.error);
+      return false;
+    }
+
     try {
       await fetch(webhookUrl, {
         method: 'POST',
@@ -76,6 +84,13 @@ export function useSheetsLogger() {
   const logDeleteToSheets = useCallback(async (data: LogData): Promise<boolean> => {
     if (!deleteWebhookUrl) {
       console.log('Delete webhook not configured, skipping log');
+      return false;
+    }
+
+    // Validate URL before making request (SSRF protection)
+    const validation = isValidWebhookUrl(deleteWebhookUrl);
+    if (!validation.valid) {
+      console.error('Invalid delete webhook URL:', validation.error);
       return false;
     }
 

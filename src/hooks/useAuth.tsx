@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { isValidWebhookUrl } from '@/lib/webhookValidator';
 
 interface AuthContextType {
   user: User | null;
@@ -69,6 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (data?.value) {
+        // Validate URL before making request (SSRF protection)
+        const validation = isValidWebhookUrl(data.value);
+        if (!validation.valid) {
+          console.error('Invalid login webhook URL:', validation.error);
+          return;
+        }
+
         const now = new Date();
         const timeOnly = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         
