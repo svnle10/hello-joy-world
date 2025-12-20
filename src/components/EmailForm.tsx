@@ -14,7 +14,8 @@ const emailSchema = z.object({
   language: z.string().min(1, 'يرجى اختيار اللغة'),
   email: z.string().email('البريد الإلكتروني غير صالح').max(255, 'البريد الإلكتروني طويل جداً'),
   pickupTime: z.string()
-    .regex(/^\d{2}:\d{2}$/, 'يرجى إدخال الوقت بصيغة صحيحة'),
+    .regex(/^\d{2}:\d{2}$/, 'يرجى إدخال الوقت بصيغة صحيحة')
+    .refine(val => val >= '12:30' && val <= '16:50', 'الوقت يجب أن يكون بين 12:30 و 16:50'),
 });
 
 const languages = [
@@ -206,6 +207,8 @@ export default function EmailForm() {
               <Input
                 id="pickupTime"
                 type="time"
+                min="12:30"
+                max="16:50"
                 value={pickupTime}
                 onChange={(e) => setPickupTime(e.target.value)}
                 required
@@ -213,7 +216,7 @@ export default function EmailForm() {
                 dir="ltr"
               />
               <p className="text-xs text-muted-foreground font-arabic">
-                اختر الوقت بصيغة الساعة:الدقائق (مثال: 15:00)
+                اختر الوقت بين 12:30 و 16:50
               </p>
             </div>
 
