@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.get-whatsapp-groups]
 verify_jwt = false
+
+[functions.send-daily-poll]
+verify_jwt = false
