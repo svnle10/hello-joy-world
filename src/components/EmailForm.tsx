@@ -109,11 +109,12 @@ export default function EmailForm() {
 
       // Log to Google Sheets
       logToSheets({
-        event_type: 'email_sent',
-        guide_email: user.email || '',
-        customer_email: email.trim(),
-        customer_language: language,
-        pickup_time: pickupTime,
+        '#Date': new Date().toISOString().split('T')[0],
+        '#Operation_Time': new Date().toISOString(),
+        '#Guide': user.email || '',
+        '#Customer_Email': email.trim(),
+        '#Pickup_Time': pickupTime,
+        '#Customer_Language': language,
       });
 
       toast.success('تم إرسال البيانات بنجاح! ✉️');
