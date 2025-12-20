@@ -18,11 +18,40 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { email, password, full_name } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+
+    // Handle delete action
+    if (action === "delete") {
+      const { user_id } = body;
+      
+      if (!user_id) {
+        throw new Error("Missing user_id for delete action");
+      }
+
+      console.log("Deleting user:", user_id);
+
+      // Delete user (this will cascade to profiles and user_roles due to FK constraints)
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+
+      if (deleteError) throw deleteError;
+
+      console.log("User deleted successfully:", user_id);
+
+      return new Response(JSON.stringify({ success: true, message: "User deleted" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle create action (default)
+    const { email, password, full_name, webhook_url } = body;
 
     if (!email || !password || !full_name) {
-      throw new Error("Missing required fields");
+      throw new Error("Missing required fields: email, password, full_name");
     }
+
+    console.log("Creating guide:", email);
 
     // Create user
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -33,6 +62,18 @@ serve(async (req) => {
     });
 
     if (createError) throw createError;
+
+    // Update profile with webhook URL if provided
+    if (webhook_url) {
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .update({ webhook_url })
+        .eq("user_id", userData.user.id);
+
+      if (profileError) {
+        console.error("Profile update error:", profileError);
+      }
+    }
 
     // Add guide role
     const { error: roleError } = await supabaseAdmin
@@ -50,7 +91,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error creating guide:", error);
+    console.error("Error in create-guide function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
