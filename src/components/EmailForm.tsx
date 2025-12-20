@@ -74,15 +74,17 @@ export default function EmailForm() {
     setIsLoading(true);
 
     try {
-      // Send to n8n form trigger as form data
-      const formData = new FormData();
-      formData.append("What is the customer's language", language);
-      formData.append("what is the customer's email", email.trim());
-      formData.append("what is the customer's pickup time", pickupTime);
-
+      // Send to n8n webhook as JSON
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "What is the customer's language": language,
+          "what is the customer's email": email.trim(),
+          "what is the customer's pickup time": pickupTime,
+        }),
       });
 
       if (!response.ok) {
