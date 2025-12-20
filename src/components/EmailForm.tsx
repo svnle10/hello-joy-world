@@ -19,11 +19,9 @@ const emailSchema = z.object({
 });
 
 const languages = [
-  { value: 'english', label: 'English', flag: '🇬🇧' },
-  { value: 'french', label: 'Français', flag: '🇫🇷' },
-  { value: 'spanish', label: 'Español', flag: '🇪🇸' },
-  { value: 'german', label: 'Deutsch', flag: '🇩🇪' },
-  { value: 'arabic', label: 'العربية', flag: '🇸🇦' },
+  { value: 'English', label: 'English', flag: '🇬🇧' },
+  { value: 'French', label: 'Français', flag: '🇫🇷' },
+  { value: 'Spanish', label: 'Español', flag: '🇪🇸' },
 ];
 
 export default function EmailForm() {
@@ -76,17 +74,15 @@ export default function EmailForm() {
     setIsLoading(true);
 
     try {
-      // Send to n8n webhook
+      // Send to n8n form trigger as form data
+      const formData = new FormData();
+      formData.append("What is the customer's language", language);
+      formData.append("what is the customer's email", email.trim());
+      formData.append("what is the customer's pickup time", pickupTime);
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          "What is the customer's language": language,
-          "what is the customer's email": email.trim(),
-          "what is the customer's pickup time": pickupTime,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
