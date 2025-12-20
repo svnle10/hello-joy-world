@@ -216,7 +216,7 @@ export default function EmailForm() {
                 dir="ltr"
               />
               <p className="text-xs text-muted-foreground font-arabic">
-                اختر الوقت بين 12:30 و 16:50
+                اختر الوقت بين 12:30 و 16:50 مساءً (PM)
               </p>
             </div>
 
