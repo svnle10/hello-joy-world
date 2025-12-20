@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useSheetsLogger } from '@/hooks/useSheetsLogger';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ interface CompletedActivity {
 
 export default function DailyPoll() {
   const { user } = useAuth();
+  const { logToSheets } = useSheetsLogger();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [completedActivities, setCompletedActivities] = useState<CompletedActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,21 +95,15 @@ export default function DailyPoll() {
 
       if (insertError) throw insertError;
 
-      // Send to Google Sheets via n8n if configured
-      const sheetsWebhookUrl = import.meta.env.VITE_N8N_SHEETS_WEBHOOK_URL;
-      if (sheetsWebhookUrl) {
-        await fetch(sheetsWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            guide_email: user.email,
-            activity_name: activity.name,
-            activity_name_ar: activity.name_ar,
-            completed_at: completedAt,
-            date: today,
-          }),
-        }).catch(err => console.error('Sheets webhook error:', err));
-      }
+      // Log to Google Sheets via n8n
+      logToSheets({
+        event_type: 'activity_completed',
+        guide_email: user.email || '',
+        activity_name: activity.name,
+        activity_name_ar: activity.name_ar,
+        completed_at: completedAt,
+        date: today,
+      });
 
       // Update local state
       setCompletedActivities(prev => [

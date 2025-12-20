@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -60,11 +60,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(!!data);
   };
 
+  const logLoginToSheets = useCallback(async (userEmail: string) => {
+    try {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'sheets_webhook_url')
+        .maybeSingle();
+
+      if (data?.value) {
+        fetch(data.value, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          mode: 'no-cors',
+          body: JSON.stringify({
+            event_type: 'user_login',
+            guide_email: userEmail,
+            timestamp: new Date().toISOString(),
+          }),
+        }).catch(err => console.error('Login log error:', err));
+      }
+    } catch (err) {
+      console.error('Error logging login:', err);
+    }
+  }, []);
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    if (!error && data?.user) {
+      logLoginToSheets(email);
+    }
+    
     return { error: error as Error | null };
   };
 

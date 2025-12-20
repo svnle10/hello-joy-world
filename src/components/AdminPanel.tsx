@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil } from 'lucide-react';
+import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import SheetsWebhookSettings from './SheetsWebhookSettings';
 
 interface Guide {
   id: string;
@@ -219,7 +220,7 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="guides" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="guides" className="flex items-center gap-2 py-2 font-arabic">
             <Users className="h-4 w-4" />
             المرشدين
@@ -227,6 +228,10 @@ export default function AdminPanel() {
           <TabsTrigger value="reports" className="flex items-center gap-2 py-2 font-arabic">
             <BarChart3 className="h-4 w-4" />
             التقارير
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2 py-2 font-arabic">
+            <Settings className="h-4 w-4" />
+            الإعدادات
           </TabsTrigger>
         </TabsList>
 
@@ -437,6 +442,13 @@ export default function AdminPanel() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <div className="space-y-4">
+            <SheetsWebhookSettings />
+          </div>
         </TabsContent>
       </Tabs>
 
