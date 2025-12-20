@@ -81,9 +81,9 @@ export default function EmailForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          "What is the customer's language": language,
-          "what is the customer's email": email.trim(),
-          "what is the customer's pickup time": pickupTime,
+          language: language,
+          email: email.trim(),
+          pickupTime: pickupTime,
         }),
       });
 
