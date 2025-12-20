@@ -97,12 +97,10 @@ export default function DailyPoll() {
 
       // Log to Google Sheets via n8n
       logToSheets({
-        event_type: 'activity_completed',
-        guide_email: user.email || '',
-        activity_name: activity.name,
-        activity_name_ar: activity.name_ar,
-        completed_at: completedAt,
-        date: today,
+        '#Date': today,
+        '#Operation_Time': completedAt,
+        '#Guide': user.email || '',
+        '#Activity': `${activity.name_ar} (${activity.name})`,
       });
 
       // Update local state

@@ -74,9 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: { 'Content-Type': 'application/json' },
           mode: 'no-cors',
           body: JSON.stringify({
-            event_type: 'user_login',
-            guide_email: userEmail,
-            timestamp: new Date().toISOString(),
+            '#Date': new Date().toISOString().split('T')[0],
+            '#Operation_Time': new Date().toISOString(),
+            '#Guide': userEmail,
+            '#Activity': 'تسجيل دخول (Login)',
           }),
         }).catch(err => console.error('Login log error:', err));
       }
