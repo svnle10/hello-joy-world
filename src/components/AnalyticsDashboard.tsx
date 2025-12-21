@@ -71,21 +71,21 @@ const AnalyticsDashboard = () => {
       const votedGuideIds = new Set((todayReports || []).map(r => r.guide_id));
       const uniqueGuidesToday = votedGuideIds.size;
 
-      // Fetch all guides with their names
-      const { data: guideRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "guide");
+      // Fetch today's assignments (guides who should work today)
+      const { data: todayAssignments } = await supabase
+        .from("daily_assignments")
+        .select("guide_id, group_number")
+        .eq("assignment_date", today);
 
-      const allGuideIds = (guideRoles || []).map(r => r.user_id);
+      const assignedGuideIds = (todayAssignments || []).map(a => a.guide_id);
 
-      // Fetch profiles for all guides
+      // Fetch profiles for assigned guides
       const { data: guideProfiles } = await supabase
         .from("profiles")
         .select("user_id, full_name")
-        .in("user_id", allGuideIds);
+        .in("user_id", assignedGuideIds.length > 0 ? assignedGuideIds : ['none']);
 
-      // Filter guides who haven't voted today
+      // Filter assigned guides who haven't voted today
       const notVotedGuides = (guideProfiles || []).filter(
         g => !votedGuideIds.has(g.user_id)
       );
@@ -338,12 +338,12 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Guides Who Haven't Voted */}
+        {/* Assigned Guides Who Haven't Voted */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserX className="h-5 w-5" />
-              Guides Who Haven't Voted Today
+              Assigned Guides Who Haven't Voted Today
               <Badge variant="secondary" className="ml-2">
                 {guidesNotVoted.length}
               </Badge>
@@ -364,7 +364,7 @@ const AnalyticsDashboard = () => {
               </div>
             ) : (
               <div className="flex items-center justify-center h-[100px] text-muted-foreground">
-                🎉 All guides have voted today!
+                🎉 All assigned guides have voted today!
               </div>
             )}
           </CardContent>
