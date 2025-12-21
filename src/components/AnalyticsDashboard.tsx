@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { Users, Activity, Mail, TrendingUp } from "lucide-react";
+import { Users, Activity, Mail, TrendingUp, UserX } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface Stats {
   totalGuides: number;
@@ -23,6 +24,11 @@ interface DailyTrend {
   emails: number;
 }
 
+interface GuideInfo {
+  user_id: string;
+  full_name: string;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444'];
 
 const AnalyticsDashboard = () => {
@@ -34,6 +40,7 @@ const AnalyticsDashboard = () => {
   });
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
   const [dailyTrend, setDailyTrend] = useState<DailyTrend[]>([]);
+  const [guidesNotVoted, setGuidesNotVoted] = useState<GuideInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +68,28 @@ const AnalyticsDashboard = () => {
         .select("guide_id")
         .eq("report_date", today);
       
-      const uniqueGuidesToday = new Set((todayReports || []).map(r => r.guide_id)).size;
+      const votedGuideIds = new Set((todayReports || []).map(r => r.guide_id));
+      const uniqueGuidesToday = votedGuideIds.size;
+
+      // Fetch all guides with their names
+      const { data: guideRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "guide");
+
+      const allGuideIds = (guideRoles || []).map(r => r.user_id);
+
+      // Fetch profiles for all guides
+      const { data: guideProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", allGuideIds);
+
+      // Filter guides who haven't voted today
+      const notVotedGuides = (guideProfiles || []).filter(
+        g => !votedGuideIds.has(g.user_id)
+      );
+      setGuidesNotVoted(notVotedGuides);
 
       // Fetch today's emails
       const todayStart = startOfDay(new Date()).toISOString();
@@ -281,7 +309,7 @@ const AnalyticsDashboard = () => {
         </Card>
 
         {/* Reports by Activity Bar Chart */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Reports by Activity</CardTitle>
           </CardHeader>
@@ -305,6 +333,38 @@ const AnalyticsDashboard = () => {
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                 No activity data for today
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Guides Who Haven't Voted */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserX className="h-5 w-5" />
+              Guides Who Haven't Voted Today
+              <Badge variant="secondary" className="ml-2">
+                {guidesNotVoted.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {guidesNotVoted.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {guidesNotVoted.map((guide) => (
+                  <Badge 
+                    key={guide.user_id} 
+                    variant="outline"
+                    className="text-sm py-1.5 px-3"
+                  >
+                    {guide.full_name}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[100px] text-muted-foreground">
+                🎉 All guides have voted today!
               </div>
             )}
           </CardContent>
