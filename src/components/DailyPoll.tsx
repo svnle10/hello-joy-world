@@ -166,12 +166,16 @@ export default function DailyPoll() {
 
       if (deleteError) throw deleteError;
 
-      // Log deletion to Google Sheets
+      // Log deletion to Google Sheets with matching data for n8n to find and delete
       logDeleteToSheets({
         '#Date': today,
         '#Operation_Time': timeOnly,
         '#Guide': guideName || user.email || '',
-        '#Activity': `Delete: ${activityToDelete.name} (${activityToDelete.name_ar})`,
+        '#Activity': `${activityToDelete.name} (${activityToDelete.name_ar})`,
+        '#Action': 'DELETE',
+        '#Search_Guide': guideName || user.email || '',
+        '#Search_Activity': `${activityToDelete.name} (${activityToDelete.name_ar})`,
+        '#Search_Date': today,
       });
 
       // Update local state

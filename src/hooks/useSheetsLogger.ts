@@ -13,6 +13,10 @@ interface LogData {
   '#Customer_Email'?: string;
   '#Pickup_Time'?: string;
   '#Customer_Language'?: string;
+  '#Action'?: string;
+  '#Search_Guide'?: string;
+  '#Search_Activity'?: string;
+  '#Search_Date'?: string;
 }
 
 // Helper to format time as HH:mm
