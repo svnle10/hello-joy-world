@@ -191,7 +191,7 @@ export default function AdminPanel() {
     e.preventDefault();
     
     if (!adminEmail || !adminPassword || !adminName) {
-      toast.error('الرجاء ملء جميع الحقول المطلوبة');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -209,7 +209,7 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
-      toast.success('تم إنشاء المشرف بنجاح');
+      toast.success('Admin created successfully');
       setIsAdminDialogOpen(false);
       setAdminEmail('');
       setAdminPassword('');
@@ -217,9 +217,32 @@ export default function AdminPanel() {
       fetchData();
     } catch (error: any) {
       console.error('Error creating admin:', error);
-      toast.error(error.message || 'خطأ في إنشاء المشرف');
+      toast.error(error.message || 'Error creating admin');
     } finally {
       setCreatingAdmin(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (admin: Admin) => {
+    setDeleting(admin.id);
+
+    try {
+      const { error } = await supabase.functions.invoke('create-guide', {
+        body: {
+          action: 'delete',
+          user_id: admin.user_id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Admin deleted successfully');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting admin:', error);
+      toast.error(error.message || 'Error deleting admin');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -524,36 +547,36 @@ export default function AdminPanel() {
           <Card className="border-primary/20">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>المشرفون</CardTitle>
+                <CardTitle>Administrators</CardTitle>
                 <CardDescription>
-                  إدارة حسابات المشرفين
+                  Manage admin accounts
                 </CardDescription>
               </div>
               <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="gradient-sunset">
                     <Shield className="h-4 w-4 mr-2" />
-                    إضافة مشرف
+                    Add Admin
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>إضافة مشرف جديد</DialogTitle>
+                    <DialogTitle>Add New Admin</DialogTitle>
                     <DialogDescription>
-                      أدخل معلومات المشرف الجديد
+                      Enter the new admin's information
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateAdmin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label>الاسم الكامل *</Label>
+                      <Label>Full Name *</Label>
                       <Input
                         value={adminName}
                         onChange={(e) => setAdminName(e.target.value)}
-                        placeholder="اسم المشرف"
+                        placeholder="John Smith"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>البريد الإلكتروني *</Label>
+                      <Label>Email *</Label>
                       <Input
                         type="email"
                         value={adminEmail}
@@ -563,12 +586,12 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>كلمة المرور *</Label>
+                      <Label>Password *</Label>
                       <Input
                         type="text"
                         value={adminPassword}
                         onChange={(e) => setAdminPassword(e.target.value)}
-                        placeholder="كلمة مرور مؤقتة"
+                        placeholder="Temporary password"
                         dir="ltr"
                       />
                     </div>
@@ -577,7 +600,7 @@ export default function AdminPanel() {
                         {creatingAdmin ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          'إنشاء الحساب'
+                          'Create Account'
                         )}
                       </Button>
                     </DialogFooter>
@@ -589,8 +612,9 @@ export default function AdminPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">الاسم</TableHead>
-                    <TableHead className="text-right">تاريخ الإنشاء</TableHead>
+                    <TableHead className="text-left">Name</TableHead>
+                    <TableHead className="text-left">Created</TableHead>
+                    <TableHead className="text-left">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -600,12 +624,47 @@ export default function AdminPanel() {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(admin.created_at), 'dd/MM/yyyy')}
                       </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              disabled={deleting === admin.id}
+                            >
+                              {deleting === admin.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Admin</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{admin.full_name}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="gap-2">
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteAdmin(admin)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {admins.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
-                        لا يوجد مشرفون بعد
+                      <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                        No admins yet
                       </TableCell>
                     </TableRow>
                   )}
