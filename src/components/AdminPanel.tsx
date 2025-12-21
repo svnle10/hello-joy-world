@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings } from 'lucide-react';
+import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import SheetsWebhookSettings from './SheetsWebhookSettings';
 
@@ -35,13 +35,22 @@ interface Report {
   activity_options?: { name_ar: string; emoji: string };
 }
 
+interface Admin {
+  id: string;
+  user_id: string;
+  full_name: string;
+  created_at: string;
+}
+
 export default function AdminPanel() {
   const { logDeleteToSheets } = useSheetsLogger();
   const [guides, setGuides] = useState<Guide[]>([]);
+  const [admins, setAdmins] = useState<Admin[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [deletingReport, setDeletingReport] = useState<string | null>(null);
   
@@ -51,6 +60,12 @@ export default function AdminPanel() {
   const [newName, setNewName] = useState('');
   const [newWebhook, setNewWebhook] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // New admin form
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
   
   // Edit guide form
   const [editName, setEditName] = useState('');
@@ -66,14 +81,30 @@ export default function AdminPanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch guides with profiles
+      // Fetch all user roles to separate guides and admins
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      const adminUserIds = (rolesData || []).filter(r => r.role === 'admin').map(r => r.user_id);
+      const guideUserIds = (rolesData || []).filter(r => r.role === 'guide').map(r => r.user_id);
+
+      // Fetch all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
-      setGuides(profilesData || []);
+
+      // Separate guides and admins
+      const guideProfiles = (profilesData || []).filter(p => guideUserIds.includes(p.user_id));
+      const adminProfiles = (profilesData || []).filter(p => adminUserIds.includes(p.user_id));
+      
+      setGuides(guideProfiles);
+      setAdmins(adminProfiles);
 
       // Fetch recent reports
       const { data: reportsData, error: reportsError } = await supabase
@@ -153,6 +184,42 @@ export default function AdminPanel() {
       toast.error(error.message || 'Error creating guide');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!adminEmail || !adminPassword || !adminName) {
+      toast.error('الرجاء ملء جميع الحقول المطلوبة');
+      return;
+    }
+
+    setCreatingAdmin(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-guide', {
+        body: {
+          email: adminEmail,
+          password: adminPassword,
+          full_name: adminName,
+          role: 'admin',
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('تم إنشاء المشرف بنجاح');
+      setIsAdminDialogOpen(false);
+      setAdminEmail('');
+      setAdminPassword('');
+      setAdminName('');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error creating admin:', error);
+      toast.error(error.message || 'خطأ في إنشاء المشرف');
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -277,10 +344,14 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="guides" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-4 h-auto p-1">
           <TabsTrigger value="guides" className="flex items-center gap-2 py-2">
             <Users className="h-4 w-4" />
             Guides
+          </TabsTrigger>
+          <TabsTrigger value="admins" className="flex items-center gap-2 py-2">
+            <Shield className="h-4 w-4" />
+            Admins
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2 py-2">
             <BarChart3 className="h-4 w-4" />
@@ -439,6 +510,102 @@ export default function AdminPanel() {
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                         No guides yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Admins Tab */}
+        <TabsContent value="admins">
+          <Card className="border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>المشرفون</CardTitle>
+                <CardDescription>
+                  إدارة حسابات المشرفين
+                </CardDescription>
+              </div>
+              <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gradient-sunset">
+                    <Shield className="h-4 w-4 mr-2" />
+                    إضافة مشرف
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>إضافة مشرف جديد</DialogTitle>
+                    <DialogDescription>
+                      أدخل معلومات المشرف الجديد
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateAdmin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>الاسم الكامل *</Label>
+                      <Input
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        placeholder="اسم المشرف"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>البريد الإلكتروني *</Label>
+                      <Input
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="admin@gmail.com"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>كلمة المرور *</Label>
+                      <Input
+                        type="text"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        placeholder="كلمة مرور مؤقتة"
+                        dir="ltr"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={creatingAdmin} className="gradient-sunset">
+                        {creatingAdmin ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'إنشاء الحساب'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">الاسم</TableHead>
+                    <TableHead className="text-right">تاريخ الإنشاء</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {admins.map((admin) => (
+                    <TableRow key={admin.id}>
+                      <TableCell className="font-medium">{admin.full_name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(admin.created_at), 'dd/MM/yyyy')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {admins.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
+                        لا يوجد مشرفون بعد
                       </TableCell>
                     </TableRow>
                   )}

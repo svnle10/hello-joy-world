@@ -156,10 +156,16 @@ serve(async (req) => {
     }
 
     // Handle create action (default)
-    const { email, password, full_name, webhook_url } = body;
+    const { email, password, full_name, webhook_url, role = "guide" } = body;
 
     if (!email || !password || !full_name) {
       throw new Error("Missing required fields: email, password, full_name");
+    }
+
+    // Validate role
+    const validRoles = ["guide", "admin"];
+    if (!validRoles.includes(role)) {
+      throw new Error("Invalid role. Must be 'guide' or 'admin'");
     }
 
     // Validate email format
@@ -183,7 +189,7 @@ serve(async (req) => {
       throw new Error("Invalid webhook URL. Must be HTTPS and not point to internal addresses.");
     }
 
-    console.log("Creating guide:", email);
+    console.log(`Creating ${role}:`, email);
 
     // Create user
     const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -207,10 +213,10 @@ serve(async (req) => {
       }
     }
 
-    // Add guide role
+    // Add user role
     const { error: roleError2 } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUserData.user.id, role: "guide" });
+      .insert({ user_id: newUserData.user.id, role: role });
 
     if (roleError2) {
       console.error("Role assignment error:", roleError2);
