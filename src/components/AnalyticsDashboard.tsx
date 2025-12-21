@@ -8,7 +8,7 @@ import { format, subDays, startOfDay } from "date-fns";
 interface Stats {
   totalGuides: number;
   totalAdmins: number;
-  totalReportsToday: number;
+  guidesWorkedToday: number;
   totalEmailsToday: number;
 }
 
@@ -29,7 +29,7 @@ const AnalyticsDashboard = () => {
   const [stats, setStats] = useState<Stats>({
     totalGuides: 0,
     totalAdmins: 0,
-    totalReportsToday: 0,
+    guidesWorkedToday: 0,
     totalEmailsToday: 0,
   });
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
@@ -54,12 +54,14 @@ const AnalyticsDashboard = () => {
         .select("*", { count: "exact", head: true })
         .eq("role", "admin");
 
-      // Fetch today's reports
+      // Fetch unique guides who worked today
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count: reportsToday } = await supabase
+      const { data: todayReports } = await supabase
         .from("daily_reports")
-        .select("*", { count: "exact", head: true })
+        .select("guide_id")
         .eq("report_date", today);
+      
+      const uniqueGuidesToday = new Set((todayReports || []).map(r => r.guide_id)).size;
 
       // Fetch today's emails
       const todayStart = startOfDay(new Date()).toISOString();
@@ -71,7 +73,7 @@ const AnalyticsDashboard = () => {
       setStats({
         totalGuides: guidesCount || 0,
         totalAdmins: adminsCount || 0,
-        totalReportsToday: reportsToday || 0,
+        guidesWorkedToday: uniqueGuidesToday,
         totalEmailsToday: emailsToday || 0,
       });
 
@@ -166,12 +168,12 @@ const AnalyticsDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reports Today
+              Guides Worked Today
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReportsToday}</div>
+            <div className="text-2xl font-bold">{stats.guidesWorkedToday}</div>
           </CardContent>
         </Card>
 
