@@ -209,6 +209,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_old_email_logs: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
