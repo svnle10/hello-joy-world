@@ -68,6 +68,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_assignments: {
+        Row: {
+          assignment_date: string
+          created_at: string
+          created_by: string
+          group_number: number
+          guide_id: string
+          id: string
+        }
+        Insert: {
+          assignment_date?: string
+          created_at?: string
+          created_by: string
+          group_number: number
+          guide_id: string
+          id?: string
+        }
+        Update: {
+          assignment_date?: string
+          created_at?: string
+          created_by?: string
+          group_number?: number
+          guide_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       daily_reports: {
         Row: {
           activity_id: string
