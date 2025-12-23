@@ -157,6 +157,68 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          issue_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          issue_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          issue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_attachments_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      issues: {
+        Row: {
+          booking_reference: string
+          created_at: string
+          description: string
+          guide_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          booking_reference: string
+          created_at?: string
+          description: string
+          guide_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_reference?: string
+          created_at?: string
+          description?: string
+          guide_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
