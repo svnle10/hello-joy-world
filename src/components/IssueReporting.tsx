@@ -214,9 +214,38 @@ export default function IssueReporting() {
     }
   };
 
+  const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
+
+  // Generate signed URLs for attachments
+  useEffect(() => {
+    const generateSignedUrls = async () => {
+      const allAttachments = issues.flatMap(i => i.attachments || []);
+      const newUrls = new Map<string, string>();
+      
+      for (const attachment of allAttachments) {
+        if (!signedUrls.has(attachment.file_path)) {
+          const { data, error } = await supabase.storage
+            .from('issue-files')
+            .createSignedUrl(attachment.file_path, 3600); // 1 hour expiry
+          
+          if (data?.signedUrl) {
+            newUrls.set(attachment.file_path, data.signedUrl);
+          }
+        }
+      }
+      
+      if (newUrls.size > 0) {
+        setSignedUrls(prev => new Map([...prev, ...newUrls]));
+      }
+    };
+    
+    if (issues.length > 0) {
+      generateSignedUrls();
+    }
+  }, [issues]);
+
   const getFileUrl = (filePath: string) => {
-    const { data } = supabase.storage.from('issue-files').getPublicUrl(filePath);
-    return data.publicUrl;
+    return signedUrls.get(filePath) || '';
   };
 
   if (loading) {
