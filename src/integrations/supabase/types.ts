@@ -157,6 +157,74 @@ export type Database = {
         }
         Relationships: []
       }
+      groups: {
+        Row: {
+          booking_reference: string
+          created_at: string
+          created_by: string
+          customer_name: string
+          email: string | null
+          group_number: number
+          guide_id: string | null
+          id: string
+          language: string
+          meeting_point: string
+          meeting_time: string
+          notes: string | null
+          number_of_people: number
+          phone: string | null
+          status: string
+          tour_date: string
+          updated_at: string
+        }
+        Insert: {
+          booking_reference: string
+          created_at?: string
+          created_by: string
+          customer_name: string
+          email?: string | null
+          group_number: number
+          guide_id?: string | null
+          id?: string
+          language?: string
+          meeting_point: string
+          meeting_time: string
+          notes?: string | null
+          number_of_people?: number
+          phone?: string | null
+          status?: string
+          tour_date?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_reference?: string
+          created_at?: string
+          created_by?: string
+          customer_name?: string
+          email?: string | null
+          group_number?: number
+          guide_id?: string | null
+          id?: string
+          language?: string
+          meeting_point?: string
+          meeting_time?: string
+          notes?: string | null
+          number_of_people?: number
+          phone?: string | null
+          status?: string
+          tour_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       issue_attachments: {
         Row: {
           created_at: string
