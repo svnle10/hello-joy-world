@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,7 @@ import {
   User,
   Globe,
   Loader2,
+  Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -72,6 +74,24 @@ interface Booking {
 interface Guide {
   user_id: string;
   full_name: string;
+}
+
+interface ParsedBooking {
+  phone: string;
+  booking_reference: string;
+  email: string;
+  customer_name: string;
+  language: string;
+  number_of_people: number;
+  meeting_point: string;
+}
+
+interface ParsedGroup {
+  date: string;
+  time: string;
+  group_number: number;
+  total_participants: number;
+  bookings: ParsedBooking[];
 }
 
 const MEETING_TIMES = [
@@ -112,10 +132,14 @@ export const GroupManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [parsedPreview, setParsedPreview] = useState<ParsedGroup | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const [groupFormData, setGroupFormData] = useState({
     group_number: 1,
@@ -141,6 +165,177 @@ export const GroupManagement = () => {
     fetchGuides();
   }, [selectedDate]);
 
+  const parseImportText = (text: string): ParsedGroup | null => {
+    try {
+      // Parse date: 📅 Date: 24/12/25 or 📅 Date: 24/12/2025
+      const dateMatch = text.match(/📅\s*Date:\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
+      if (!dateMatch) return null;
+
+      const day = dateMatch[1].padStart(2, "0");
+      const month = dateMatch[2].padStart(2, "0");
+      let year = dateMatch[3];
+      if (year.length === 2) {
+        year = "20" + year;
+      }
+      const date = `${year}-${month}-${day}`;
+
+      // Parse total participants: 👥 Total Participants: 48P
+      const participantsMatch = text.match(/👥\s*Total\s*Participants:\s*(\d+)/i);
+      const totalParticipants = participantsMatch ? parseInt(participantsMatch[1]) : 0;
+
+      // Parse time: standalone time like 13:00
+      const timeMatch = text.match(/\n(\d{1,2}:\d{2})\s*\n/);
+      const time = timeMatch ? timeMatch[1] : "13:00";
+
+      // Parse group number: Group 1
+      const groupMatch = text.match(/Group\s*(\d+)/i);
+      const groupNumber = groupMatch ? parseInt(groupMatch[1]) : 1;
+
+      // Parse bookings
+      const bookingsList: ParsedBooking[] = [];
+      let currentMeetingPoint = "";
+
+      // Split by lines and process
+      const lines = text.split("\n");
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Check for meeting point (line with tabs or just text after Group line)
+        // Meeting points appear as indented text or after "Group X"
+        const meetingPointMatch = line.match(/(?:Group\s*\d+\s*)?\t+(.+)|^\s{2,}(\w.+)$/i);
+        if (meetingPointMatch) {
+          const point = (meetingPointMatch[1] || meetingPointMatch[2] || "").trim();
+          if (point && !point.includes("📞") && !point.includes("📧") && !point.includes("👤") && !point.includes("🗣")) {
+            currentMeetingPoint = point;
+            continue;
+          }
+        }
+
+        // Also check for standalone meeting point lines (just text with no emojis)
+        if (line.trim() && !line.includes("📅") && !line.includes("👥") && !line.includes("📞") && 
+            !line.includes("📧") && !line.includes("👤") && !line.includes("🗣") && !line.includes("🔹") &&
+            !line.includes("🎟") && !line.match(/^\d{1,2}:\d{2}$/) && !line.match(/Group\s*\d+/i) &&
+            line.trim().length > 2 && line.trim().length < 50) {
+          // This might be a meeting point
+          const trimmedLine = line.trim().toLowerCase();
+          const knownPoints = ["bab agnaou", "asswak essalam", "jardin majorelle", "arsat my abdesalam", "jemaa el-fna", "koutoubia mosque"];
+          if (knownPoints.some(p => trimmedLine.includes(p.toLowerCase())) || 
+              (!trimmedLine.includes("|") && !trimmedLine.includes("@"))) {
+            currentMeetingPoint = line.trim();
+            continue;
+          }
+        }
+
+        // Parse booking line: 📞 +33770013442 | 🔹 Booking Ref: GYGX7NRVR2W4
+        const phoneMatch = line.match(/📞\s*([+\d]+)/);
+        const refMatch = line.match(/🔹\s*Booking\s*Ref:\s*(\w+)/i);
+
+        if (phoneMatch && refMatch) {
+          // Get next lines for email, name, language
+          const emailLine = lines[i + 1] || "";
+          const nameLine = lines[i + 2] || "";
+          const langLine = lines[i + 3] || "";
+
+          const emailMatch = emailLine.match(/📧\s*Email:\s*([^\s]+)/i);
+          const nameMatch = nameLine.match(/👤\s*Name:\s*(.+)/i);
+          const langMatch = langLine.match(/🗣\s*Language:\s*(\w+)/i);
+          const partMatch = langLine.match(/🎟\s*Participants:\s*(\d+)/i);
+
+          if (nameMatch) {
+            bookingsList.push({
+              phone: phoneMatch[1].trim(),
+              booking_reference: refMatch[1].trim(),
+              email: emailMatch ? emailMatch[1].trim() : "",
+              customer_name: nameMatch[1].trim(),
+              language: langMatch ? langMatch[1].trim() : "English",
+              number_of_people: partMatch ? parseInt(partMatch[1]) : 1,
+              meeting_point: currentMeetingPoint || "Unknown",
+            });
+          }
+        }
+      }
+
+      if (bookingsList.length === 0) return null;
+
+      return {
+        date,
+        time,
+        group_number: groupNumber,
+        total_participants: totalParticipants || bookingsList.reduce((sum, b) => sum + b.number_of_people, 0),
+        bookings: bookingsList,
+      };
+    } catch (error) {
+      console.error("Parse error:", error);
+      return null;
+    }
+  };
+
+  const handleBulkImportTextChange = (text: string) => {
+    setBulkImportText(text);
+    const parsed = parseImportText(text);
+    setParsedPreview(parsed);
+  };
+
+  const handleBulkImport = async () => {
+    if (!parsedPreview) {
+      toast.error("Could not parse the text. Please check the format.");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      // Create the group
+      const { data: groupData, error: groupError } = await supabase
+        .from("groups")
+        .insert({
+          group_number: parsedPreview.group_number,
+          tour_date: parsedPreview.date,
+          meeting_time: parsedPreview.time,
+          total_participants: parsedPreview.total_participants,
+          status: "pending",
+          created_by: userData.user.id,
+        })
+        .select()
+        .single();
+
+      if (groupError) throw groupError;
+
+      // Create all bookings
+      const bookingsToInsert = parsedPreview.bookings.map((b) => ({
+        group_id: groupData.id,
+        booking_reference: b.booking_reference,
+        customer_name: b.customer_name,
+        phone: b.phone || null,
+        email: b.email || null,
+        number_of_people: b.number_of_people,
+        language: b.language,
+        meeting_point: b.meeting_point,
+      }));
+
+      const { error: bookingsError } = await supabase.from("bookings").insert(bookingsToInsert);
+
+      if (bookingsError) throw bookingsError;
+
+      toast.success(`Successfully imported ${parsedPreview.bookings.length} bookings!`);
+      setIsBulkImportDialogOpen(false);
+      setBulkImportText("");
+      setParsedPreview(null);
+      setSelectedDate(parsedPreview.date);
+      fetchGroups();
+    } catch (error: any) {
+      toast.error("Failed to import: " + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const fetchGroups = async () => {
     setLoading(true);
     try {
@@ -153,7 +348,6 @@ export const GroupManagement = () => {
       if (error) throw error;
       setGroups(data || []);
 
-      // Fetch bookings for all groups
       if (data && data.length > 0) {
         const groupIds = data.map((g) => g.id);
         const { data: bookingsData, error: bookingsError } = await supabase
@@ -164,7 +358,6 @@ export const GroupManagement = () => {
 
         if (bookingsError) throw bookingsError;
 
-        // Group bookings by group_id
         const bookingsByGroup: Record<string, Booking[]> = {};
         bookingsData?.forEach((booking) => {
           if (!bookingsByGroup[booking.group_id]) {
@@ -177,7 +370,7 @@ export const GroupManagement = () => {
         setBookings({});
       }
     } catch (error: any) {
-      toast.error("فشل في تحميل المجموعات: " + error.message);
+      toast.error("Failed to load groups: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -211,7 +404,7 @@ export const GroupManagement = () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
-        toast.error("يجب تسجيل الدخول أولاً");
+        toast.error("You must be logged in");
         return;
       }
 
@@ -232,26 +425,26 @@ export const GroupManagement = () => {
           .eq("id", editingGroup.id);
 
         if (error) throw error;
-        toast.success("تم تحديث المجموعة بنجاح");
+        toast.success("Group updated successfully");
       } else {
         const { error } = await supabase.from("groups").insert([groupData]);
 
         if (error) throw error;
-        toast.success("تم إضافة المجموعة بنجاح");
+        toast.success("Group added successfully");
       }
 
       setIsGroupDialogOpen(false);
       resetGroupForm();
       fetchGroups();
     } catch (error: any) {
-      toast.error("فشل في حفظ المجموعة: " + error.message);
+      toast.error("Failed to save group: " + error.message);
     }
   };
 
   const handleSaveBooking = async () => {
     try {
       if (!selectedGroupId) {
-        toast.error("يجب اختيار مجموعة أولاً");
+        toast.error("Please select a group first");
         return;
       }
 
@@ -273,22 +466,21 @@ export const GroupManagement = () => {
           .eq("id", editingBooking.id);
 
         if (error) throw error;
-        toast.success("تم تحديث الحجز بنجاح");
+        toast.success("Booking updated successfully");
       } else {
         const { error } = await supabase.from("bookings").insert([bookingData]);
 
         if (error) throw error;
-        toast.success("تم إضافة الحجز بنجاح");
+        toast.success("Booking added successfully");
       }
 
-      // Update total participants
       await updateGroupTotalParticipants(selectedGroupId);
 
       setIsBookingDialogOpen(false);
       resetBookingForm();
       fetchGroups();
     } catch (error: any) {
-      toast.error("فشل في حفظ الحجز: " + error.message);
+      toast.error("Failed to save booking: " + error.message);
     }
   };
 
@@ -304,33 +496,32 @@ export const GroupManagement = () => {
   };
 
   const handleDeleteGroup = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذه المجموعة وجميع الحجوزات؟")) return;
+    if (!confirm("Are you sure you want to delete this group and all its bookings?")) return;
 
     try {
       const { error } = await supabase.from("groups").delete().eq("id", id);
 
       if (error) throw error;
-      toast.success("تم حذف المجموعة بنجاح");
+      toast.success("Group deleted successfully");
       fetchGroups();
     } catch (error: any) {
-      toast.error("فشل في حذف المجموعة: " + error.message);
+      toast.error("Failed to delete group: " + error.message);
     }
   };
 
   const handleDeleteBooking = async (booking: Booking) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الحجز؟")) return;
+    if (!confirm("Are you sure you want to delete this booking?")) return;
 
     try {
       const { error } = await supabase.from("bookings").delete().eq("id", booking.id);
 
       if (error) throw error;
-      toast.success("تم حذف الحجز بنجاح");
+      toast.success("Booking deleted successfully");
 
-      // Update total participants
       await updateGroupTotalParticipants(booking.group_id);
       fetchGroups();
     } catch (error: any) {
-      toast.error("فشل في حذف الحجز: " + error.message);
+      toast.error("Failed to delete booking: " + error.message);
     }
   };
 
@@ -402,21 +593,20 @@ export const GroupManagement = () => {
       cancelled: "destructive",
     };
     const labels: Record<string, string> = {
-      pending: "قيد الانتظار",
-      confirmed: "مؤكد",
-      completed: "مكتمل",
-      cancelled: "ملغي",
+      pending: "Pending",
+      confirmed: "Confirmed",
+      completed: "Completed",
+      cancelled: "Cancelled",
     };
     return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>;
   };
 
   const getGuideName = (guideId: string | null) => {
-    if (!guideId) return "غير محدد";
+    if (!guideId) return "Not Assigned";
     const guide = guides.find((g) => g.user_id === guideId);
-    return guide?.full_name || "غير محدد";
+    return guide?.full_name || "Not Assigned";
   };
 
-  // Group bookings by meeting point
   const groupBookingsByMeetingPoint = (groupBookings: Booking[]) => {
     const grouped: Record<string, Booking[]> = {};
     groupBookings?.forEach((booking) => {
@@ -439,10 +629,10 @@ export const GroupManagement = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold">إدارة المجموعات</h2>
-        <div className="flex items-center gap-4">
+        <h2 className="text-2xl font-bold">Group Management</h2>
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Label htmlFor="tour-date">التاريخ:</Label>
+            <Label htmlFor="tour-date">Date:</Label>
             <Input
               id="tour-date"
               type="date"
@@ -451,23 +641,131 @@ export const GroupManagement = () => {
               className="w-auto"
             />
           </div>
+          
+          {/* Bulk Import Button */}
+          <Dialog open={isBulkImportDialogOpen} onOpenChange={setIsBulkImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => { setBulkImportText(""); setParsedPreview(null); }}>
+                <Upload className="h-4 w-4 mr-2" />
+                Bulk Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Bulk Import Bookings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Paste your group text here:</Label>
+                  <Textarea
+                    value={bulkImportText}
+                    onChange={(e) => handleBulkImportTextChange(e.target.value)}
+                    placeholder={`📅 Date: 24/12/25
+👥 Total Participants: 48P
+
+13:00
+
+Group 1			bab agnaou
+
+📞 +33770013442 | 🔹 Booking Ref: GYGX7NRVR2W4
+📧 Email: customer@example.com
+👤 Name: John Doe
+🗣 Language: English | 🎟 Participants: 2P`}
+                    className="min-h-[200px] font-mono text-sm"
+                  />
+                </div>
+
+                {parsedPreview && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        Preview ({parsedPreview.bookings.length} bookings found)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Date: {parsedPreview.date}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span>Time: {parsedPreview.time}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>Group: {parsedPreview.group_number}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>Total: {parsedPreview.total_participants}P</span>
+                        </div>
+                      </div>
+                      
+                      <div className="border rounded-lg max-h-[200px] overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted sticky top-0">
+                            <tr>
+                              <th className="p-2 text-left">Name</th>
+                              <th className="p-2 text-left">Meeting Point</th>
+                              <th className="p-2 text-left">Ref</th>
+                              <th className="p-2 text-center">P</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedPreview.bookings.map((b, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="p-2">{b.customer_name}</td>
+                                <td className="p-2">{b.meeting_point}</td>
+                                <td className="p-2 font-mono text-xs">{b.booking_reference}</td>
+                                <td className="p-2 text-center">{b.number_of_people}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Button 
+                  onClick={handleBulkImport} 
+                  className="w-full"
+                  disabled={!parsedPreview || importing}
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import {parsedPreview?.bookings.length || 0} Bookings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetGroupForm}>
                 <Plus className="h-4 w-4 mr-2" />
-                إضافة مجموعة
+                Add Group
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  {editingGroup ? "تعديل المجموعة" : "إضافة مجموعة جديدة"}
+                  {editingGroup ? "Edit Group" : "Add New Group"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="group_number">رقم المجموعة</Label>
+                    <Label htmlFor="group_number">Group Number</Label>
                     <Input
                       id="group_number"
                       type="number"
@@ -482,7 +780,7 @@ export const GroupManagement = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="tour_date">تاريخ الجولة</Label>
+                    <Label htmlFor="tour_date">Tour Date</Label>
                     <Input
                       id="tour_date"
                       type="date"
@@ -496,7 +794,7 @@ export const GroupManagement = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="meeting_time">وقت الإلتقاء</Label>
+                    <Label htmlFor="meeting_time">Meeting Time</Label>
                     <Select
                       value={groupFormData.meeting_time}
                       onValueChange={(value) =>
@@ -516,7 +814,7 @@ export const GroupManagement = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="status">الحالة</Label>
+                    <Label htmlFor="status">Status</Label>
                     <Select
                       value={groupFormData.status}
                       onValueChange={(value) =>
@@ -527,17 +825,17 @@ export const GroupManagement = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">قيد الانتظار</SelectItem>
-                        <SelectItem value="confirmed">مؤكد</SelectItem>
-                        <SelectItem value="completed">مكتمل</SelectItem>
-                        <SelectItem value="cancelled">ملغي</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="guide">تعيين المرشد</Label>
+                  <Label htmlFor="guide">Assign Guide</Label>
                   <Select
                     value={groupFormData.guide_id || "none"}
                     onValueChange={(value) =>
@@ -548,10 +846,10 @@ export const GroupManagement = () => {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر مرشد" />
+                      <SelectValue placeholder="Select a guide" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">غير محدد</SelectItem>
+                      <SelectItem value="none">Not Assigned</SelectItem>
                       {guides.map((guide) => (
                         <SelectItem key={guide.user_id} value={guide.user_id}>
                           {guide.full_name}
@@ -562,19 +860,19 @@ export const GroupManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">ملاحظات</Label>
+                  <Label htmlFor="notes">Notes</Label>
                   <Input
                     id="notes"
                     value={groupFormData.notes}
                     onChange={(e) =>
                       setGroupFormData({ ...groupFormData, notes: e.target.value })
                     }
-                    placeholder="ملاحظات إضافية..."
+                    placeholder="Additional notes..."
                   />
                 </div>
 
                 <Button onClick={handleSaveGroup} className="w-full">
-                  {editingGroup ? "تحديث" : "إضافة"}
+                  {editingGroup ? "Update" : "Add"}
                 </Button>
               </div>
             </DialogContent>
@@ -587,12 +885,12 @@ export const GroupManagement = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingBooking ? "تعديل الحجز" : "إضافة حجز جديد"}
+              {editingBooking ? "Edit Booking" : "Add New Booking"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="booking_reference">رقم الحجز</Label>
+              <Label htmlFor="booking_reference">Booking Reference</Label>
               <Input
                 id="booking_reference"
                 value={bookingFormData.booking_reference}
@@ -607,7 +905,7 @@ export const GroupManagement = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customer_name">اسم العميل</Label>
+              <Label htmlFor="customer_name">Customer Name</Label>
               <Input
                 id="customer_name"
                 value={bookingFormData.customer_name}
@@ -622,7 +920,7 @@ export const GroupManagement = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
                   value={bookingFormData.phone}
@@ -633,7 +931,7 @@ export const GroupManagement = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="number_of_people">عدد الأشخاص</Label>
+                <Label htmlFor="number_of_people">Participants</Label>
                 <Input
                   id="number_of_people"
                   type="number"
@@ -650,7 +948,7 @@ export const GroupManagement = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -663,7 +961,7 @@ export const GroupManagement = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="language">اللغة</Label>
+                <Label htmlFor="language">Language</Label>
                 <Select
                   value={bookingFormData.language}
                   onValueChange={(value) =>
@@ -683,7 +981,7 @@ export const GroupManagement = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="meeting_point">نقطة الإلتقاء</Label>
+                <Label htmlFor="meeting_point">Meeting Point</Label>
                 <Select
                   value={bookingFormData.meeting_point || "select"}
                   onValueChange={(value) =>
@@ -694,10 +992,10 @@ export const GroupManagement = () => {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر نقطة" />
+                    <SelectValue placeholder="Select point" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="select">اختر نقطة</SelectItem>
+                    <SelectItem value="select">Select point</SelectItem>
                     {MEETING_POINTS.map((point) => (
                       <SelectItem key={point} value={point}>
                         {point}
@@ -713,7 +1011,7 @@ export const GroupManagement = () => {
               className="w-full"
               disabled={!bookingFormData.booking_reference || !bookingFormData.customer_name || !bookingFormData.meeting_point}
             >
-              {editingBooking ? "تحديث" : "إضافة"}
+              {editingBooking ? "Update" : "Add"}
             </Button>
           </div>
         </DialogContent>
@@ -724,7 +1022,7 @@ export const GroupManagement = () => {
         {groups.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              لا توجد مجموعات لهذا التاريخ
+              No groups for this date
             </CardContent>
           </Card>
         ) : (
@@ -771,7 +1069,7 @@ export const GroupManagement = () => {
                   <AccordionContent>
                     <div className="space-y-4 pt-4">
                       <div className="flex justify-between items-center">
-                        <h4 className="font-medium">الحجوزات ({groupBookings.length})</h4>
+                        <h4 className="font-medium">Bookings ({groupBookings.length})</h4>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -779,7 +1077,7 @@ export const GroupManagement = () => {
                             onClick={() => handleAddBookingToGroup(group.id)}
                           >
                             <Plus className="h-4 w-4 mr-1" />
-                            إضافة حجز
+                            Add Booking
                           </Button>
                           <Button
                             size="sm"
@@ -787,7 +1085,7 @@ export const GroupManagement = () => {
                             onClick={() => handleEditGroup(group)}
                           >
                             <Pencil className="h-4 w-4 mr-1" />
-                            تعديل
+                            Edit
                           </Button>
                           <Button
                             size="sm"
@@ -801,7 +1099,7 @@ export const GroupManagement = () => {
 
                       {Object.keys(bookingsByPoint).length === 0 ? (
                         <p className="text-muted-foreground text-center py-4">
-                          لا توجد حجوزات في هذه المجموعة
+                          No bookings in this group
                         </p>
                       ) : (
                         Object.entries(bookingsByPoint).map(([meetingPoint, pointBookings]) => (
@@ -810,7 +1108,7 @@ export const GroupManagement = () => {
                               <CardTitle className="text-sm flex items-center gap-2">
                                 <MapPin className="h-4 w-4" />
                                 {meetingPoint}
-                                <Badge variant="secondary">{pointBookings.length} حجوزات</Badge>
+                                <Badge variant="secondary">{pointBookings.length} bookings</Badge>
                               </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-0">
