@@ -11,30 +11,54 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Calendar,
+  Users,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  Globe,
+  Loader2,
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface Group {
   id: string;
   group_number: number;
+  tour_date: string;
+  meeting_time: string;
+  total_participants: number;
+  status: string;
+  notes: string | null;
+  guide_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Booking {
+  id: string;
+  group_id: string;
   booking_reference: string;
   customer_name: string;
   phone: string | null;
@@ -42,13 +66,7 @@ interface Group {
   number_of_people: number;
   language: string;
   meeting_point: string;
-  meeting_time: string;
-  tour_date: string;
-  guide_id: string | null;
-  status: string;
-  notes: string | null;
   created_at: string;
-  guide_name?: string;
 }
 
 interface Guide {
@@ -57,176 +75,153 @@ interface Guide {
 }
 
 const MEETING_TIMES = [
-  "1:00 PM",
-  "2:00 PM",
-  "3:00 PM",
-  "3:30 PM",
-  "4:00 PM",
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
 ];
 
-const LANGUAGES = [
-  "English",
-  "Arabic",
-  "French",
-  "Spanish",
-  "German",
-  "Italian",
-  "Chinese",
-  "Japanese",
-  "Russian",
-  "Portuguese",
-];
+const LANGUAGES = ["English", "French", "Spanish", "Arabic", "German", "Italian", "Portuguese"];
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-700",
-  confirmed: "bg-green-500/20 text-green-700",
-  completed: "bg-blue-500/20 text-blue-700",
-  cancelled: "bg-red-500/20 text-red-700",
-};
+const MEETING_POINTS = [
+  "Bab Agnaou",
+  "Asswak Essalam",
+  "Jardin Majorelle",
+  "Arsat My Abdesalam",
+  "Jemaa el-Fna",
+  "Koutoubia Mosque",
+];
 
 export const GroupManagement = () => {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [bookings, setBookings] = useState<Record<string, Booking[]>>({});
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  // Form state
-  const [formData, setFormData] = useState({
-    group_number: "",
+  const [groupFormData, setGroupFormData] = useState({
+    group_number: 1,
+    tour_date: format(new Date(), "yyyy-MM-dd"),
+    meeting_time: "13:00",
+    status: "pending",
+    notes: "",
+    guide_id: "",
+  });
+
+  const [bookingFormData, setBookingFormData] = useState({
     booking_reference: "",
     customer_name: "",
     phone: "",
     email: "",
-    number_of_people: "1",
+    number_of_people: 1,
     language: "English",
     meeting_point: "",
-    meeting_time: "1:00 PM",
-    tour_date: format(new Date(), "yyyy-MM-dd"),
-    guide_id: "",
-    status: "pending",
-    notes: "",
   });
 
   useEffect(() => {
-    fetchData();
+    fetchGroups();
+    fetchGuides();
   }, [selectedDate]);
 
-  const fetchData = async () => {
+  const fetchGroups = async () => {
     setLoading(true);
     try {
-      // Fetch guides
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "guide");
-
-      if (rolesData) {
-        const guideIds = rolesData.map((r) => r.user_id);
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", guideIds);
-
-        if (profilesData) {
-          setGuides(profilesData);
-        }
-      }
-
-      // Fetch groups for selected date
-      const { data: groupsData, error } = await supabase
+      const { data, error } = await supabase
         .from("groups")
         .select("*")
         .eq("tour_date", selectedDate)
         .order("meeting_time", { ascending: true });
 
       if (error) throw error;
+      setGroups(data || []);
 
-      // Enrich with guide names
-      if (groupsData) {
-        const enrichedGroups = groupsData.map((group) => {
-          const guide = guides.find((g) => g.user_id === group.guide_id);
-          return {
-            ...group,
-            guide_name: guide?.full_name || "Not Assigned",
-          };
+      // Fetch bookings for all groups
+      if (data && data.length > 0) {
+        const groupIds = data.map((g) => g.id);
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from("bookings")
+          .select("*")
+          .in("group_id", groupIds)
+          .order("meeting_point", { ascending: true });
+
+        if (bookingsError) throw bookingsError;
+
+        // Group bookings by group_id
+        const bookingsByGroup: Record<string, Booking[]> = {};
+        bookingsData?.forEach((booking) => {
+          if (!bookingsByGroup[booking.group_id]) {
+            bookingsByGroup[booking.group_id] = [];
+          }
+          bookingsByGroup[booking.group_id].push(booking);
         });
-        setGroups(enrichedGroups);
+        setBookings(bookingsByGroup);
+      } else {
+        setBookings({});
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load data");
+    } catch (error: any) {
+      toast.error("فشل في تحميل المجموعات: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      group_number: "",
-      booking_reference: "",
-      customer_name: "",
-      phone: "",
-      email: "",
-      number_of_people: "1",
-      language: "English",
-      meeting_point: "",
-      meeting_time: "1:00 PM",
-      tour_date: selectedDate,
-      guide_id: "",
-      status: "pending",
-      notes: "",
-    });
-    setEditingGroup(null);
+  const fetchGuides = async () => {
+    try {
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "guide");
+
+      if (rolesError) throw rolesError;
+
+      if (rolesData && rolesData.length > 0) {
+        const guideIds = rolesData.map((r) => r.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", guideIds);
+
+        if (profilesError) throw profilesError;
+        setGuides(profilesData || []);
+      }
+    } catch (error: any) {
+      console.error("Error fetching guides:", error);
+    }
   };
 
-  const handleEdit = (group: Group) => {
-    setEditingGroup(group);
-    setFormData({
-      group_number: group.group_number.toString(),
-      booking_reference: group.booking_reference,
-      customer_name: group.customer_name,
-      phone: group.phone || "",
-      email: group.email || "",
-      number_of_people: group.number_of_people.toString(),
-      language: group.language,
-      meeting_point: group.meeting_point,
-      meeting_time: group.meeting_time,
-      tour_date: group.tour_date,
-      guide_id: group.guide_id || "",
-      status: group.status,
-      notes: group.notes || "",
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
+  const handleSaveGroup = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
-        toast.error("You must be logged in");
+        toast.error("يجب تسجيل الدخول أولاً");
         return;
       }
 
       const groupData = {
-        group_number: parseInt(formData.group_number),
-        booking_reference: formData.booking_reference.trim(),
-        customer_name: formData.customer_name.trim(),
-        phone: formData.phone.trim() || null,
-        email: formData.email.trim() || null,
-        number_of_people: parseInt(formData.number_of_people),
-        language: formData.language,
-        meeting_point: formData.meeting_point.trim(),
-        meeting_time: formData.meeting_time,
-        tour_date: formData.tour_date,
-        guide_id: formData.guide_id || null,
-        status: formData.status,
-        notes: formData.notes.trim() || null,
+        group_number: groupFormData.group_number,
+        tour_date: groupFormData.tour_date,
+        meeting_time: groupFormData.meeting_time,
+        status: groupFormData.status,
+        notes: groupFormData.notes || null,
+        guide_id: groupFormData.guide_id || null,
         created_by: userData.user.id,
       };
 
@@ -237,38 +232,200 @@ export const GroupManagement = () => {
           .eq("id", editingGroup.id);
 
         if (error) throw error;
-        toast.success("Group updated successfully");
+        toast.success("تم تحديث المجموعة بنجاح");
       } else {
-        const { error } = await supabase.from("groups").insert(groupData);
+        const { error } = await supabase.from("groups").insert([groupData]);
 
         if (error) throw error;
-        toast.success("Group added successfully");
+        toast.success("تم إضافة المجموعة بنجاح");
       }
 
-      setIsDialogOpen(false);
-      resetForm();
-      fetchData();
+      setIsGroupDialogOpen(false);
+      resetGroupForm();
+      fetchGroups();
     } catch (error: any) {
-      console.error("Error saving group:", error);
-      toast.error(error.message || "Failed to save group");
-    } finally {
-      setSaving(false);
+      toast.error("فشل في حفظ المجموعة: " + error.message);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this group?")) return;
+  const handleSaveBooking = async () => {
+    try {
+      if (!selectedGroupId) {
+        toast.error("يجب اختيار مجموعة أولاً");
+        return;
+      }
+
+      const bookingData = {
+        group_id: selectedGroupId,
+        booking_reference: bookingFormData.booking_reference,
+        customer_name: bookingFormData.customer_name,
+        phone: bookingFormData.phone || null,
+        email: bookingFormData.email || null,
+        number_of_people: bookingFormData.number_of_people,
+        language: bookingFormData.language,
+        meeting_point: bookingFormData.meeting_point,
+      };
+
+      if (editingBooking) {
+        const { error } = await supabase
+          .from("bookings")
+          .update(bookingData)
+          .eq("id", editingBooking.id);
+
+        if (error) throw error;
+        toast.success("تم تحديث الحجز بنجاح");
+      } else {
+        const { error } = await supabase.from("bookings").insert([bookingData]);
+
+        if (error) throw error;
+        toast.success("تم إضافة الحجز بنجاح");
+      }
+
+      // Update total participants
+      await updateGroupTotalParticipants(selectedGroupId);
+
+      setIsBookingDialogOpen(false);
+      resetBookingForm();
+      fetchGroups();
+    } catch (error: any) {
+      toast.error("فشل في حفظ الحجز: " + error.message);
+    }
+  };
+
+  const updateGroupTotalParticipants = async (groupId: string) => {
+    const { data: bookingsData } = await supabase
+      .from("bookings")
+      .select("number_of_people")
+      .eq("group_id", groupId);
+
+    const total = bookingsData?.reduce((sum, b) => sum + b.number_of_people, 0) || 0;
+
+    await supabase.from("groups").update({ total_participants: total }).eq("id", groupId);
+  };
+
+  const handleDeleteGroup = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذه المجموعة وجميع الحجوزات؟")) return;
 
     try {
       const { error } = await supabase.from("groups").delete().eq("id", id);
 
       if (error) throw error;
-      toast.success("Group deleted successfully");
-      fetchData();
+      toast.success("تم حذف المجموعة بنجاح");
+      fetchGroups();
     } catch (error: any) {
-      console.error("Error deleting group:", error);
-      toast.error(error.message || "Failed to delete group");
+      toast.error("فشل في حذف المجموعة: " + error.message);
     }
+  };
+
+  const handleDeleteBooking = async (booking: Booking) => {
+    if (!confirm("هل أنت متأكد من حذف هذا الحجز؟")) return;
+
+    try {
+      const { error } = await supabase.from("bookings").delete().eq("id", booking.id);
+
+      if (error) throw error;
+      toast.success("تم حذف الحجز بنجاح");
+
+      // Update total participants
+      await updateGroupTotalParticipants(booking.group_id);
+      fetchGroups();
+    } catch (error: any) {
+      toast.error("فشل في حذف الحجز: " + error.message);
+    }
+  };
+
+  const handleEditGroup = (group: Group) => {
+    setEditingGroup(group);
+    setGroupFormData({
+      group_number: group.group_number,
+      tour_date: group.tour_date,
+      meeting_time: group.meeting_time,
+      status: group.status,
+      notes: group.notes || "",
+      guide_id: group.guide_id || "",
+    });
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleEditBooking = (booking: Booking) => {
+    setEditingBooking(booking);
+    setSelectedGroupId(booking.group_id);
+    setBookingFormData({
+      booking_reference: booking.booking_reference,
+      customer_name: booking.customer_name,
+      phone: booking.phone || "",
+      email: booking.email || "",
+      number_of_people: booking.number_of_people,
+      language: booking.language,
+      meeting_point: booking.meeting_point,
+    });
+    setIsBookingDialogOpen(true);
+  };
+
+  const handleAddBookingToGroup = (groupId: string) => {
+    setSelectedGroupId(groupId);
+    setEditingBooking(null);
+    resetBookingForm();
+    setIsBookingDialogOpen(true);
+  };
+
+  const resetGroupForm = () => {
+    setEditingGroup(null);
+    setGroupFormData({
+      group_number: 1,
+      tour_date: selectedDate,
+      meeting_time: "13:00",
+      status: "pending",
+      notes: "",
+      guide_id: "",
+    });
+  };
+
+  const resetBookingForm = () => {
+    setEditingBooking(null);
+    setBookingFormData({
+      booking_reference: "",
+      customer_name: "",
+      phone: "",
+      email: "",
+      number_of_people: 1,
+      language: "English",
+      meeting_point: "",
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      pending: "secondary",
+      confirmed: "default",
+      completed: "outline",
+      cancelled: "destructive",
+    };
+    const labels: Record<string, string> = {
+      pending: "قيد الانتظار",
+      confirmed: "مؤكد",
+      completed: "مكتمل",
+      cancelled: "ملغي",
+    };
+    return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>;
+  };
+
+  const getGuideName = (guideId: string | null) => {
+    if (!guideId) return "غير محدد";
+    const guide = guides.find((g) => g.user_id === guideId);
+    return guide?.full_name || "غير محدد";
+  };
+
+  // Group bookings by meeting point
+  const groupBookingsByMeetingPoint = (groupBookings: Booking[]) => {
+    const grouped: Record<string, Booking[]> = {};
+    groupBookings?.forEach((booking) => {
+      if (!grouped[booking.meeting_point]) {
+        grouped[booking.meeting_point] = [];
+      }
+      grouped[booking.meeting_point].push(booking);
+    });
+    return grouped;
   };
 
   if (loading) {
@@ -280,15 +437,12 @@ export const GroupManagement = () => {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Group Management
-        </CardTitle>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-2xl font-bold">إدارة المجموعات</h2>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Label htmlFor="tour-date">Date:</Label>
+            <Label htmlFor="tour-date">التاريخ:</Label>
             <Input
               id="tour-date"
               type="date"
@@ -297,128 +451,56 @@ export const GroupManagement = () => {
               className="w-auto"
             />
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+          <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={resetGroupForm}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Group
+                إضافة مجموعة
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  {editingGroup ? "Edit Group" : "Add New Group"}
+                  {editingGroup ? "تعديل المجموعة" : "إضافة مجموعة جديدة"}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="group_number">Group Number *</Label>
+                    <Label htmlFor="group_number">رقم المجموعة</Label>
                     <Input
                       id="group_number"
                       type="number"
-                      value={formData.group_number}
-                      onChange={(e) =>
-                        setFormData({ ...formData, group_number: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="booking_reference">Booking Reference *</Label>
-                    <Input
-                      id="booking_reference"
-                      value={formData.booking_reference}
-                      onChange={(e) =>
-                        setFormData({ ...formData, booking_reference: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_name">Customer Name *</Label>
-                    <Input
-                      id="customer_name"
-                      value={formData.customer_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, customer_name: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="number_of_people">Number of People *</Label>
-                    <Input
-                      id="number_of_people"
-                      type="number"
                       min="1"
-                      value={formData.number_of_people}
+                      value={groupFormData.group_number}
                       onChange={(e) =>
-                        setFormData({ ...formData, number_of_people: e.target.value })
+                        setGroupFormData({
+                          ...groupFormData,
+                          group_number: parseInt(e.target.value) || 1,
+                        })
                       }
-                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tour_date">تاريخ الجولة</Label>
+                    <Input
+                      id="tour_date"
+                      type="date"
+                      value={groupFormData.tour_date}
+                      onChange={(e) =>
+                        setGroupFormData({ ...groupFormData, tour_date: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="language">Language *</Label>
+                    <Label htmlFor="meeting_time">وقت الإلتقاء</Label>
                     <Select
-                      value={formData.language}
+                      value={groupFormData.meeting_time}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, language: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LANGUAGES.map((lang) => (
-                          <SelectItem key={lang} value={lang}>
-                            {lang}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="meeting_time">Meeting Time *</Label>
-                    <Select
-                      value={formData.meeting_time}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, meeting_time: value })
+                        setGroupFormData({ ...groupFormData, meeting_time: value })
                       }
                     >
                       <SelectTrigger>
@@ -433,181 +515,376 @@ export const GroupManagement = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="meeting_point">Meeting Point *</Label>
-                    <Input
-                      id="meeting_point"
-                      value={formData.meeting_point}
-                      onChange={(e) =>
-                        setFormData({ ...formData, meeting_point: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tour_date">Tour Date *</Label>
-                    <Input
-                      id="tour_date"
-                      type="date"
-                      value={formData.tour_date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, tour_date: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="guide">Assign Guide</Label>
+                    <Label htmlFor="status">الحالة</Label>
                     <Select
-                      value={formData.guide_id || "none"}
+                      value={groupFormData.status}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, guide_id: value === "none" ? "" : value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a guide" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Not Assigned</SelectItem>
-                        {guides.map((guide) => (
-                          <SelectItem key={guide.user_id} value={guide.user_id}>
-                            {guide.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status *</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, status: value })
+                        setGroupFormData({ ...groupFormData, status: value })
                       }
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="pending">قيد الانتظار</SelectItem>
+                        <SelectItem value="confirmed">مؤكد</SelectItem>
+                        <SelectItem value="completed">مكتمل</SelectItem>
+                        <SelectItem value="cancelled">ملغي</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData({ ...formData, notes: e.target.value })
+                  <Label htmlFor="guide">تعيين المرشد</Label>
+                  <Select
+                    value={groupFormData.guide_id || "none"}
+                    onValueChange={(value) =>
+                      setGroupFormData({
+                        ...groupFormData,
+                        guide_id: value === "none" ? "" : value,
+                      })
                     }
-                    rows={3}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر مرشد" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">غير محدد</SelectItem>
+                      {guides.map((guide) => (
+                        <SelectItem key={guide.user_id} value={guide.user_id}>
+                          {guide.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">ملاحظات</Label>
+                  <Input
+                    id="notes"
+                    value={groupFormData.notes}
+                    onChange={(e) =>
+                      setGroupFormData({ ...groupFormData, notes: e.target.value })
+                    }
+                    placeholder="ملاحظات إضافية..."
                   />
                 </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {editingGroup ? "Update" : "Add"} Group
-                  </Button>
-                </div>
-              </form>
+                <Button onClick={handleSaveGroup} className="w-full">
+                  {editingGroup ? "تحديث" : "إضافة"}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+
+      {/* Booking Dialog */}
+      <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingBooking ? "تعديل الحجز" : "إضافة حجز جديد"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="booking_reference">رقم الحجز</Label>
+              <Input
+                id="booking_reference"
+                value={bookingFormData.booking_reference}
+                onChange={(e) =>
+                  setBookingFormData({
+                    ...bookingFormData,
+                    booking_reference: e.target.value,
+                  })
+                }
+                placeholder="GYGX7NRVR2W4"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">اسم العميل</Label>
+              <Input
+                id="customer_name"
+                value={bookingFormData.customer_name}
+                onChange={(e) =>
+                  setBookingFormData({
+                    ...bookingFormData,
+                    customer_name: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Input
+                  id="phone"
+                  value={bookingFormData.phone}
+                  onChange={(e) =>
+                    setBookingFormData({ ...bookingFormData, phone: e.target.value })
+                  }
+                  placeholder="+33770013442"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="number_of_people">عدد الأشخاص</Label>
+                <Input
+                  id="number_of_people"
+                  type="number"
+                  min="1"
+                  value={bookingFormData.number_of_people}
+                  onChange={(e) =>
+                    setBookingFormData({
+                      ...bookingFormData,
+                      number_of_people: parseInt(e.target.value) || 1,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                type="email"
+                value={bookingFormData.email}
+                onChange={(e) =>
+                  setBookingFormData({ ...bookingFormData, email: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="language">اللغة</Label>
+                <Select
+                  value={bookingFormData.language}
+                  onValueChange={(value) =>
+                    setBookingFormData({ ...bookingFormData, language: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="meeting_point">نقطة الإلتقاء</Label>
+                <Select
+                  value={bookingFormData.meeting_point || "select"}
+                  onValueChange={(value) =>
+                    setBookingFormData({
+                      ...bookingFormData,
+                      meeting_point: value === "select" ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر نقطة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="select">اختر نقطة</SelectItem>
+                    {MEETING_POINTS.map((point) => (
+                      <SelectItem key={point} value={point}>
+                        {point}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSaveBooking}
+              className="w-full"
+              disabled={!bookingFormData.booking_reference || !bookingFormData.customer_name || !bookingFormData.meeting_point}
+            >
+              {editingBooking ? "تحديث" : "إضافة"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Groups List */}
+      <div className="space-y-4">
         {groups.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No groups found for this date. Click "Add Group" to create one.
-          </div>
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              لا توجد مجموعات لهذا التاريخ
+            </CardContent>
+          </Card>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Group #</TableHead>
-                  <TableHead>Booking Ref</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>People</TableHead>
-                  <TableHead>Language</TableHead>
-                  <TableHead>Meeting Time</TableHead>
-                  <TableHead>Meeting Point</TableHead>
-                  <TableHead>Guide</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groups.map((group) => (
-                  <TableRow key={group.id}>
-                    <TableCell className="font-medium">{group.group_number}</TableCell>
-                    <TableCell>{group.booking_reference}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{group.customer_name}</div>
-                        {group.phone && (
-                          <div className="text-sm text-muted-foreground">{group.phone}</div>
-                        )}
+          <Accordion type="multiple" className="space-y-4">
+            {groups.map((group) => {
+              const groupBookings = bookings[group.id] || [];
+              const bookingsByPoint = groupBookingsByMeetingPoint(groupBookings);
+
+              return (
+                <AccordionItem
+                  key={group.id}
+                  value={group.id}
+                  className="border rounded-lg px-4"
+                >
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center justify-between w-full pr-4">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex flex-col items-start">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">
+                              {format(new Date(group.tour_date), "dd/MM/yyyy")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>{group.meeting_time}</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline">Group {group.group_number}</Badge>
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>{group.total_participants}P</span>
+                        </div>
+                        {getStatusBadge(group.status)}
                       </div>
-                    </TableCell>
-                    <TableCell>{group.number_of_people}</TableCell>
-                    <TableCell>{group.language}</TableCell>
-                    <TableCell>{group.meeting_time}</TableCell>
-                    <TableCell>{group.meeting_point}</TableCell>
-                    <TableCell>
-                      {guides.find((g) => g.user_id === group.guide_id)?.full_name || (
-                        <span className="text-muted-foreground">Not Assigned</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {getGuideName(group.guide_id)}
+                        </span>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 pt-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium">الحجوزات ({groupBookings.length})</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddBookingToGroup(group.id)}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            إضافة حجز
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditGroup(group)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            تعديل
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteGroup(group.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {Object.keys(bookingsByPoint).length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">
+                          لا توجد حجوزات في هذه المجموعة
+                        </p>
+                      ) : (
+                        Object.entries(bookingsByPoint).map(([meetingPoint, pointBookings]) => (
+                          <Card key={meetingPoint}>
+                            <CardHeader className="py-3">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                {meetingPoint}
+                                <Badge variant="secondary">{pointBookings.length} حجوزات</Badge>
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="space-y-3">
+                                {pointBookings.map((booking) => (
+                                  <div
+                                    key={booking.id}
+                                    className="border rounded-lg p-3 space-y-2"
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <User className="h-4 w-4 text-muted-foreground" />
+                                          <span className="font-medium">
+                                            {booking.customer_name}
+                                          </span>
+                                          <Badge variant="outline">
+                                            {booking.number_of_people}P
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                                          {booking.phone && (
+                                            <span className="flex items-center gap-1">
+                                              <Phone className="h-3 w-3" />
+                                              {booking.phone}
+                                            </span>
+                                          )}
+                                          <span className="flex items-center gap-1">
+                                            <Globe className="h-3 w-3" />
+                                            {booking.language}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                                          <span>🔹 Ref: {booking.booking_reference}</span>
+                                          {booking.email && (
+                                            <span className="flex items-center gap-1">
+                                              <Mail className="h-3 w-3" />
+                                              {booking.email}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleEditBooking(booking)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleDeleteBooking(booking)}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[group.status] || ""}>
-                        {group.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(group)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(group.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

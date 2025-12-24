@@ -68,6 +68,53 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          booking_reference: string
+          created_at: string
+          customer_name: string
+          email: string | null
+          group_id: string
+          id: string
+          language: string
+          meeting_point: string
+          number_of_people: number
+          phone: string | null
+        }
+        Insert: {
+          booking_reference: string
+          created_at?: string
+          customer_name: string
+          email?: string | null
+          group_id: string
+          id?: string
+          language?: string
+          meeting_point: string
+          number_of_people?: number
+          phone?: string | null
+        }
+        Update: {
+          booking_reference?: string
+          created_at?: string
+          customer_name?: string
+          email?: string | null
+          group_id?: string
+          id?: string
+          language?: string
+          meeting_point?: string
+          number_of_people?: number
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_assignments: {
         Row: {
           assignment_date: string
@@ -159,59 +206,41 @@ export type Database = {
       }
       groups: {
         Row: {
-          booking_reference: string
           created_at: string
           created_by: string
-          customer_name: string
-          email: string | null
           group_number: number
           guide_id: string | null
           id: string
-          language: string
-          meeting_point: string
           meeting_time: string
           notes: string | null
-          number_of_people: number
-          phone: string | null
           status: string
+          total_participants: number | null
           tour_date: string
           updated_at: string
         }
         Insert: {
-          booking_reference: string
           created_at?: string
           created_by: string
-          customer_name: string
-          email?: string | null
           group_number: number
           guide_id?: string | null
           id?: string
-          language?: string
-          meeting_point: string
           meeting_time: string
           notes?: string | null
-          number_of_people?: number
-          phone?: string | null
           status?: string
+          total_participants?: number | null
           tour_date?: string
           updated_at?: string
         }
         Update: {
-          booking_reference?: string
           created_at?: string
           created_by?: string
-          customer_name?: string
-          email?: string | null
           group_number?: number
           guide_id?: string | null
           id?: string
-          language?: string
-          meeting_point?: string
           meeting_time?: string
           notes?: string | null
-          number_of_people?: number
-          phone?: string | null
           status?: string
+          total_participants?: number | null
           tour_date?: string
           updated_at?: string
         }
