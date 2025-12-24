@@ -151,6 +151,11 @@ export default function AdminPanel() {
       return;
     }
 
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
     // Validate webhook URL if provided
     if (newWebhook) {
       const validation = isValidWebhookUrl(newWebhook);
@@ -194,6 +199,11 @@ export default function AdminPanel() {
     
     if (!adminEmail || !adminPassword || !adminName) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (adminPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
 
