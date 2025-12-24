@@ -648,17 +648,17 @@ export const GroupManagement = () => {
                   <Textarea
                     value={bulkImportText}
                     onChange={(e) => handleBulkImportTextChange(e.target.value)}
-                    placeholder={`📅 Date: 24/12/25
-👥 Total Participants: 48P
+                    placeholder={`📅 Date: xx/xx/xx
+👥 Total Participants: xxP
 
-13:00
+xx:xx
 
-Group 1			bab agnaou
+Group x			xxxxxx
 
-📞 +33770013442 | 🔹 Booking Ref: GYGX7NRVR2W4
-📧 Email: customer@example.com
-👤 Name: John Doe
-🗣 Language: English | 🎟 Participants: 2P`}
+📞 +xxxxxxxxxx | 🔹 Booking Ref: xxxxxxxxxx
+📧 Email: xxxxxxxxxx@xxxxxx.xxx
+👤 Name: xxxxxxxxxx
+🗣 Language: xxxxxx | 🎟 Participants: xP`}
                     className="min-h-[200px] font-mono text-sm"
                   />
                 </div>
