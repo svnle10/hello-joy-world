@@ -199,6 +199,7 @@ export type Database = {
           description: string
           guide_id: string
           id: string
+          issue_type: string
           updated_at: string
         }
         Insert: {
@@ -207,6 +208,7 @@ export type Database = {
           description: string
           guide_id: string
           id?: string
+          issue_type?: string
           updated_at?: string
         }
         Update: {
@@ -215,6 +217,7 @@ export type Database = {
           description?: string
           guide_id?: string
           id?: string
+          issue_type?: string
           updated_at?: string
         }
         Relationships: []
