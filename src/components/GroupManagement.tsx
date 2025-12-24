@@ -465,16 +465,16 @@ export const GroupManagement = () => {
                   <div className="space-y-2">
                     <Label htmlFor="guide">Assign Guide</Label>
                     <Select
-                      value={formData.guide_id}
+                      value={formData.guide_id || "none"}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, guide_id: value })
+                        setFormData({ ...formData, guide_id: value === "none" ? "" : value })
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a guide" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Not Assigned</SelectItem>
+                        <SelectItem value="none">Not Assigned</SelectItem>
                         {guides.map((guide) => (
                           <SelectItem key={guide.user_id} value={guide.user_id}>
                             {guide.full_name}
