@@ -187,13 +187,13 @@ export const GroupManagement = () => {
       const timeMatch = text.match(/\n(\d{1,2}:\d{2})\s*\n/);
       const time = timeMatch ? timeMatch[1] : "13:00";
 
-      // Parse group number: Group 1
-      const groupMatch = text.match(/Group\s*(\d+)/i);
-      const groupNumber = groupMatch ? parseInt(groupMatch[1]) : 1;
+      // Parse group number and first meeting point: Group 1			bab agnaou
+      const groupLineMatch = text.match(/Group\s*(\d+)\s*[\t\s]+([^\n]+)/i);
+      const groupNumber = groupLineMatch ? parseInt(groupLineMatch[1]) : 1;
+      let currentMeetingPoint = groupLineMatch ? groupLineMatch[2].trim() : "";
 
       // Parse bookings
       const bookingsList: ParsedBooking[] = [];
-      let currentMeetingPoint = "";
 
       // Split by lines and process
       const lines = text.split("\n");
@@ -201,28 +201,16 @@ export const GroupManagement = () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         
-        // Check for meeting point (line with tabs or just text after Group line)
-        // Meeting points appear as indented text or after "Group X"
-        const meetingPointMatch = line.match(/(?:Group\s*\d+\s*)?\t+(.+)|^\s{2,}(\w.+)$/i);
-        if (meetingPointMatch) {
-          const point = (meetingPointMatch[1] || meetingPointMatch[2] || "").trim();
-          if (point && !point.includes("📞") && !point.includes("📧") && !point.includes("👤") && !point.includes("🗣")) {
-            currentMeetingPoint = point;
-            continue;
-          }
-        }
-
-        // Also check for standalone meeting point lines (just text with no emojis)
-        if (line.trim() && !line.includes("📅") && !line.includes("👥") && !line.includes("📞") && 
-            !line.includes("📧") && !line.includes("👤") && !line.includes("🗣") && !line.includes("🔹") &&
-            !line.includes("🎟") && !line.match(/^\d{1,2}:\d{2}$/) && !line.match(/Group\s*\d+/i) &&
-            line.trim().length > 2 && line.trim().length < 50) {
-          // This might be a meeting point
-          const trimmedLine = line.trim().toLowerCase();
-          const knownPoints = ["bab agnaou", "asswak essalam", "jardin majorelle", "arsat my abdesalam", "jemaa el-fna", "koutoubia mosque"];
-          if (knownPoints.some(p => trimmedLine.includes(p.toLowerCase())) || 
-              (!trimmedLine.includes("|") && !trimmedLine.includes("@"))) {
-            currentMeetingPoint = line.trim();
+        // Check for meeting point change - lines starting with tabs (like "		asswak essalam")
+        // These are lines that start with whitespace/tabs and contain only text (no emojis)
+        if (/^[\t\s]{2,}[^\t\s📞📧👤🗣🔹🎟📅👥]/.test(line)) {
+          const potentialPoint = line.trim();
+          // Make sure it's not empty and doesn't contain booking data markers
+          if (potentialPoint.length > 0 && 
+              !potentialPoint.includes("|") && 
+              !potentialPoint.includes("@") &&
+              !potentialPoint.match(/^\d{1,2}:\d{2}$/)) {
+            currentMeetingPoint = potentialPoint;
             continue;
           }
         }
