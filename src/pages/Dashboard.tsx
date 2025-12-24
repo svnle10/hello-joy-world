@@ -82,8 +82,8 @@ export default function Dashboard() {
               className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <AlertTriangle className="h-4 w-4" />
-              <span className="hidden sm:inline">المشاكل</span>
-              <span className="sm:hidden">مشاكل</span>
+              <span className="hidden sm:inline">Issues</span>
+              <span className="sm:hidden">Issues</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger
