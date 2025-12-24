@@ -78,8 +78,11 @@ export type Database = {
           id: string
           language: string
           meeting_point: string
+          notes: string | null
           number_of_people: number
           phone: string | null
+          postponed_to: string | null
+          status: string
         }
         Insert: {
           booking_reference: string
@@ -90,8 +93,11 @@ export type Database = {
           id?: string
           language?: string
           meeting_point: string
+          notes?: string | null
           number_of_people?: number
           phone?: string | null
+          postponed_to?: string | null
+          status?: string
         }
         Update: {
           booking_reference?: string
@@ -102,8 +108,11 @@ export type Database = {
           id?: string
           language?: string
           meeting_point?: string
+          notes?: string | null
           number_of_people?: number
           phone?: string | null
+          postponed_to?: string | null
+          status?: string
         }
         Relationships: [
           {

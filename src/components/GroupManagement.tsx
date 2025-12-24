@@ -41,6 +41,12 @@ import {
   Globe,
   Loader2,
   Upload,
+  Search,
+  X,
+  CalendarClock,
+  AlertTriangle,
+  Ban,
+  CheckCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -69,6 +75,9 @@ interface Booking {
   language: string;
   meeting_point: string;
   created_at: string;
+  status: string;
+  postponed_to: string | null;
+  notes: string | null;
 }
 
 interface Guide {
@@ -140,6 +149,16 @@ export const GroupManagement = () => {
   const [bulkImportText, setBulkImportText] = useState("");
   const [parsedPreview, setParsedPreview] = useState<ParsedGroup | null>(null);
   const [importing, setImporting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Booking[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [selectedBookingForStatus, setSelectedBookingForStatus] = useState<Booking | null>(null);
+  const [statusFormData, setStatusFormData] = useState({
+    status: "confirmed",
+    postponed_to: "",
+    notes: "",
+  });
 
   const [groupFormData, setGroupFormData] = useState({
     group_number: 1,
@@ -573,6 +592,95 @@ export const GroupManagement = () => {
     });
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Search by booking reference or phone
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("*")
+        .or(`booking_reference.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+        .limit(20);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+      
+      if (data?.length === 0) {
+        toast.info("No bookings found");
+      }
+    } catch (error: any) {
+      toast.error("Search failed: " + error.message);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const openStatusDialog = (booking: Booking) => {
+    setSelectedBookingForStatus(booking);
+    setStatusFormData({
+      status: booking.status || "confirmed",
+      postponed_to: booking.postponed_to || "",
+      notes: booking.notes || "",
+    });
+    setIsStatusDialogOpen(true);
+  };
+
+  const handleUpdateBookingStatus = async () => {
+    if (!selectedBookingForStatus) return;
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          status: statusFormData.status,
+          postponed_to: statusFormData.status === "postponed" ? statusFormData.postponed_to || null : null,
+          notes: statusFormData.notes || null,
+        })
+        .eq("id", selectedBookingForStatus.id);
+
+      if (error) throw error;
+
+      toast.success("Booking status updated");
+      setIsStatusDialogOpen(false);
+      setSelectedBookingForStatus(null);
+      fetchGroups();
+
+      // Update search results if applicable
+      if (searchResults.length > 0) {
+        handleSearch();
+      }
+    } catch (error: any) {
+      toast.error("Failed to update status: " + error.message);
+    }
+  };
+
+  const getBookingStatusBadge = (status: string, postponedTo?: string | null) => {
+    const config: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
+      confirmed: { variant: "default", label: "Confirmed", icon: <CheckCircle className="h-3 w-3" /> },
+      cancelled: { variant: "destructive", label: "Cancelled", icon: <Ban className="h-3 w-3" /> },
+      postponed: { variant: "secondary", label: postponedTo ? `Postponed to ${postponedTo}` : "Postponed", icon: <CalendarClock className="h-3 w-3" /> },
+      no_show: { variant: "outline", label: "No Show", icon: <X className="h-3 w-3" /> },
+      problem: { variant: "destructive", label: "Problem", icon: <AlertTriangle className="h-3 w-3" /> },
+    };
+    const statusConfig = config[status] || config.confirmed;
+    return (
+      <Badge variant={statusConfig.variant} className="flex items-center gap-1">
+        {statusConfig.icon}
+        {statusConfig.label}
+      </Badge>
+    );
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "secondary",
@@ -616,6 +724,165 @@ export const GroupManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Search Section */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by booking reference or phone number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="pl-9"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={clearSearch}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Button onClick={handleSearch} disabled={isSearching}>
+              {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="mt-4 border rounded-lg">
+              <div className="p-3 bg-muted border-b">
+                <span className="font-medium">Search Results ({searchResults.length})</span>
+              </div>
+              <div className="divide-y max-h-[300px] overflow-y-auto">
+                {searchResults.map((booking) => (
+                  <div key={booking.id} className="p-3 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{booking.customer_name}</span>
+                          <Badge variant="outline">{booking.number_of_people}P</Badge>
+                          {getBookingStatusBadge(booking.status, booking.postponed_to)}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                          <span>🔹 Ref: {booking.booking_reference}</span>
+                          {booking.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {booking.phone}
+                            </span>
+                          )}
+                        </div>
+                        {booking.notes && (
+                          <p className="text-sm text-muted-foreground">📝 {booking.notes}</p>
+                        )}
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => openStatusDialog(booking)}>
+                        Change Status
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Status Update Dialog */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Booking Status</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedBookingForStatus && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="font-medium">{selectedBookingForStatus.customer_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Ref: {selectedBookingForStatus.booking_reference}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={statusFormData.status}
+                onValueChange={(value) => setStatusFormData({ ...statusFormData, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="confirmed">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Confirmed
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="cancelled">
+                    <span className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-red-500" />
+                      Cancelled
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="postponed">
+                    <span className="flex items-center gap-2">
+                      <CalendarClock className="h-4 w-4 text-blue-500" />
+                      Postponed
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="no_show">
+                    <span className="flex items-center gap-2">
+                      <X className="h-4 w-4 text-gray-500" />
+                      No Show
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="problem">
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      Problem
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {statusFormData.status === "postponed" && (
+              <div className="space-y-2">
+                <Label>Postponed To</Label>
+                <Input
+                  type="date"
+                  value={statusFormData.postponed_to}
+                  onChange={(e) => setStatusFormData({ ...statusFormData, postponed_to: e.target.value })}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={statusFormData.notes}
+                onChange={(e) => setStatusFormData({ ...statusFormData, notes: e.target.value })}
+                placeholder="Add any notes about this booking..."
+                rows={3}
+              />
+            </div>
+
+            <Button onClick={handleUpdateBookingStatus} className="w-full">
+              Update Status
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold">Group Management</h2>
         <div className="flex items-center gap-4 flex-wrap">
@@ -1104,7 +1371,12 @@ Group x			xxxxxx
                                 {pointBookings.map((booking) => (
                                   <div
                                     key={booking.id}
-                                    className="border rounded-lg p-3 space-y-2"
+                                    className={`border rounded-lg p-3 space-y-2 ${
+                                      booking.status === "cancelled" ? "bg-destructive/5 border-destructive/20" :
+                                      booking.status === "no_show" ? "bg-muted/50" :
+                                      booking.status === "problem" ? "bg-orange-500/5 border-orange-500/20" :
+                                      booking.status === "postponed" ? "bg-blue-500/5 border-blue-500/20" : ""
+                                    }`}
                                   >
                                     <div className="flex justify-between items-start">
                                       <div className="space-y-1">
@@ -1116,6 +1388,7 @@ Group x			xxxxxx
                                           <Badge variant="outline">
                                             {booking.number_of_people}P
                                           </Badge>
+                                          {getBookingStatusBadge(booking.status, booking.postponed_to)}
                                         </div>
                                         <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                                           {booking.phone && (
@@ -1138,8 +1411,19 @@ Group x			xxxxxx
                                             </span>
                                           )}
                                         </div>
+                                        {booking.notes && (
+                                          <p className="text-sm text-muted-foreground">📝 {booking.notes}</p>
+                                        )}
                                       </div>
                                       <div className="flex gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => openStatusDialog(booking)}
+                                          title="Change Status"
+                                        >
+                                          <CalendarClock className="h-4 w-4" />
+                                        </Button>
                                         <Button
                                           size="icon"
                                           variant="ghost"
