@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2, Image, Video, X, AlertTriangle, FileText, UserX, CalendarClock } from 'lucide-react';
+import { Loader2, Plus, Trash2, Image, Video, X, AlertTriangle, FileText, UserX, CalendarClock, Users } from 'lucide-react';
 
 type IssueType = 'problem' | 'no_show' | 'postponement';
 
@@ -30,6 +30,14 @@ interface Attachment {
   file_path: string;
   file_name: string;
   file_type: string;
+}
+
+interface GroupBooking {
+  booking_reference: string;
+  customer_name: string;
+  group_number: number;
+  meeting_time: string;
+  tour_date: string;
 }
 
 const ISSUE_TYPE_CONFIG: Record<IssueType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -63,10 +71,55 @@ export default function IssueReporting() {
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | IssueType>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // New state for guide's bookings
+  const [guideBookings, setGuideBookings] = useState<GroupBooking[]>([]);
+  const [bookingSource, setBookingSource] = useState<'select' | 'manual'>('select');
 
   useEffect(() => {
     fetchIssues();
+    if (!isAdmin) {
+      fetchGuideBookings();
+    }
   }, [user, isAdmin]);
+
+  const fetchGuideBookings = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch groups assigned to this guide
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select('id, group_number, meeting_time, tour_date')
+        .eq('guide_id', user.id);
+
+      if (groupsError) throw groupsError;
+
+      if (groupsData && groupsData.length > 0) {
+        const groupIds = groupsData.map(g => g.id);
+        const { data: bookingsData } = await supabase
+          .from('bookings')
+          .select('booking_reference, customer_name, group_id')
+          .in('group_id', groupIds);
+
+        if (bookingsData) {
+          const bookingsWithGroup = bookingsData.map(booking => {
+            const group = groupsData.find(g => g.id === booking.group_id);
+            return {
+              booking_reference: booking.booking_reference,
+              customer_name: booking.customer_name,
+              group_number: group?.group_number || 0,
+              meeting_time: group?.meeting_time || '',
+              tour_date: group?.tour_date || ''
+            };
+          });
+          setGuideBookings(bookingsWithGroup);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching guide bookings:', error);
+    }
+  };
 
   const fetchIssues = async () => {
     if (!user) return;
@@ -339,15 +392,67 @@ export default function IssueReporting() {
                 </Select>
               </div>
 
+              {/* Booking Selection - Only for guides */}
+              {!isAdmin && guideBookings.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Choose Booking From</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={bookingSource === 'select' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setBookingSource('select')}
+                      className={bookingSource === 'select' ? 'gradient-desert' : ''}
+                    >
+                      <Users className="h-4 w-4 mr-1" />
+                      My Groups
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={bookingSource === 'manual' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setBookingSource('manual')}
+                      className={bookingSource === 'manual' ? 'gradient-desert' : ''}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      New Booking
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="bookingReference">Booking Reference *</Label>
-                <Input
-                  id="bookingReference"
-                  value={bookingReference}
-                  onChange={(e) => setBookingReference(e.target.value)}
-                  placeholder="e.g., GYG-123456"
-                  dir="ltr"
-                />
+                {!isAdmin && bookingSource === 'select' && guideBookings.length > 0 ? (
+                  <Select 
+                    value={bookingReference} 
+                    onValueChange={(value) => setBookingReference(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a booking from your groups" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {guideBookings.map((booking) => (
+                        <SelectItem key={booking.booking_reference} value={booking.booking_reference}>
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs">{booking.booking_reference}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {booking.customer_name} - Group {booking.group_number} ({booking.tour_date})
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="bookingReference"
+                    value={bookingReference}
+                    onChange={(e) => setBookingReference(e.target.value)}
+                    placeholder="e.g., GYG-123456"
+                    dir="ltr"
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
