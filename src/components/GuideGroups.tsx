@@ -219,13 +219,13 @@ export default function GuideGroups() {
 
       if (bookingsError) throw bookingsError;
 
-      toast.success(`تم استيراد ${parsedPreview.bookings.length} حجز بنجاح!`);
+      toast.success(`Successfully imported ${parsedPreview.bookings.length} bookings!`);
       setIsBulkImportDialogOpen(false);
       setBulkImportText("");
       setParsedPreview(null);
       fetchGroups();
     } catch (error: any) {
-      toast.error("فشل الاستيراد: " + error.message);
+      toast.error("Import failed: " + error.message);
     } finally {
       setImporting(false);
     }
@@ -306,16 +306,16 @@ export default function GuideGroups() {
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Upload className="h-4 w-4" />
-          استيراد جماعي
+          Bulk Import
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>استيراد جماعي للحجوزات</DialogTitle>
+          <DialogTitle>Bulk Import Bookings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>رقم المجموعة</Label>
+            <Label>Group Number</Label>
             <Input
               type="number"
               min="1"
@@ -329,30 +329,29 @@ export default function GuideGroups() {
             />
           </div>
           <div className="space-y-2">
-            <Label>الصق نص المجموعة</Label>
+            <Label>Paste Group Text</Label>
             <Textarea
               value={bulkImportText}
               onChange={(e) => handleBulkImportTextChange(e.target.value)}
-              placeholder="الصق البيانات المنسقة هنا..."
+              placeholder="Paste formatted data here..."
               className="min-h-[200px] font-mono text-xs"
-              dir="ltr"
             />
           </div>
 
           {parsedPreview && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">معاينة البيانات</CardTitle>
+                <CardTitle className="text-sm">Data Preview</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="grid grid-cols-2 gap-2">
-                  <div>التاريخ: {parsedPreview.date}</div>
-                  <div>الوقت: {parsedPreview.time}</div>
-                  <div>المجموعة: {groupNumber}</div>
-                  <div>المشاركون: {parsedPreview.total_participants}</div>
+                  <div>Date: {parsedPreview.date}</div>
+                  <div>Time: {parsedPreview.time}</div>
+                  <div>Group: {groupNumber}</div>
+                  <div>Participants: {parsedPreview.total_participants}</div>
                 </div>
                 <div className="border-t pt-2">
-                  <strong>{parsedPreview.bookings.length} حجز:</strong>
+                  <strong>{parsedPreview.bookings.length} bookings:</strong>
                   <ul className="mt-1 space-y-1 max-h-32 overflow-y-auto">
                     {parsedPreview.bookings.map((b, i) => (
                       <li key={i} className="text-xs bg-muted p-1 rounded">
@@ -372,13 +371,13 @@ export default function GuideGroups() {
           >
             {importing ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                جارٍ الاستيراد...
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Importing...
               </>
             ) : (
               <>
-                <Upload className="h-4 w-4 ml-2" />
-                استيراد {parsedPreview?.bookings.length || 0} حجز
+                <Upload className="h-4 w-4 mr-2" />
+                Import {parsedPreview?.bookings.length || 0} Bookings
               </>
             )}
           </Button>
@@ -393,16 +392,16 @@ export default function GuideGroups() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold text-foreground">مجموعاتي</h2>
+            <h2 className="text-xl font-bold text-foreground">My Groups</h2>
           </div>
           {renderBulkImportDialog()}
         </div>
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">لم يتم تعيين أي مجموعات لك بعد</p>
+            <p className="text-muted-foreground">No groups assigned to you yet</p>
             <p className="text-sm text-muted-foreground mt-2">
-              يمكنك استيراد الحجوزات باستخدام زر الاستيراد الجماعي
+              You can import bookings using the Bulk Import button
             </p>
           </CardContent>
         </Card>
@@ -415,8 +414,8 @@ export default function GuideGroups() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold text-foreground">مجموعاتي</h2>
-          <Badge variant="secondary">{groups.length} مجموعة</Badge>
+          <h2 className="text-xl font-bold text-foreground">My Groups</h2>
+          <Badge variant="secondary">{groups.length} groups</Badge>
         </div>
         {renderBulkImportDialog()}
       </div>
