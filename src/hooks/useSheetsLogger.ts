@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { isValidWebhookUrl } from '@/lib/webhookValidator';
 
 export type LogEventType = 'activity_completed' | 'email_sent' | 'user_login' | 'activity_deleted';
 
@@ -25,93 +24,52 @@ export function formatTimeOnly(date: Date): string {
 }
 
 export function useSheetsLogger() {
-  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
-  const [deleteWebhookUrl, setDeleteWebhookUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchWebhookUrls = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('app_settings')
-          .select('key, value')
-          .in('key', ['sheets_webhook_url', 'sheets_delete_webhook_url']);
-
-        if (!error && data) {
-          data.forEach((setting) => {
-            if (setting.key === 'sheets_webhook_url' && setting.value) {
-              setWebhookUrl(setting.value);
-            }
-            if (setting.key === 'sheets_delete_webhook_url' && setting.value) {
-              setDeleteWebhookUrl(setting.value);
-            }
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching sheets webhook URLs:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchWebhookUrls();
-  }, []);
-
   const logToSheets = useCallback(async (data: LogData): Promise<boolean> => {
-    if (!webhookUrl) {
-      console.log('Sheets webhook not configured, skipping log');
-      return false;
-    }
-
-    // Validate URL before making request (SSRF protection)
-    const validation = isValidWebhookUrl(webhookUrl);
-    if (!validation.valid) {
-      console.error('Invalid webhook URL:', validation.error);
-      return false;
-    }
-
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(data),
+      const { data: response, error } = await supabase.functions.invoke('log-to-sheets', {
+        body: { action: 'log', data }
       });
-      console.log('Event logged to Google Sheets');
-      return true;
+
+      if (error) {
+        console.error('Error logging to Google Sheets:', error);
+        return false;
+      }
+
+      if (response?.success) {
+        console.log('Event logged to Google Sheets');
+        return true;
+      }
+      
+      return false;
     } catch (err) {
       console.error('Error logging to Google Sheets:', err);
       return false;
     }
-  }, [webhookUrl]);
+  }, []);
 
   const logDeleteToSheets = useCallback(async (data: LogData): Promise<boolean> => {
-    if (!deleteWebhookUrl) {
-      console.log('Delete webhook not configured, skipping log');
-      return false;
-    }
-
-    // Validate URL before making request (SSRF protection)
-    const validation = isValidWebhookUrl(deleteWebhookUrl);
-    if (!validation.valid) {
-      console.error('Invalid delete webhook URL:', validation.error);
-      return false;
-    }
-
     try {
-      await fetch(deleteWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(data),
+      const { data: response, error } = await supabase.functions.invoke('log-to-sheets', {
+        body: { action: 'delete', data }
       });
-      console.log('Delete event logged to Google Sheets');
-      return true;
+
+      if (error) {
+        console.error('Error logging delete to Google Sheets:', error);
+        return false;
+      }
+
+      if (response?.success) {
+        console.log('Delete event logged to Google Sheets');
+        return true;
+      }
+      
+      return false;
     } catch (err) {
       console.error('Error logging delete to Google Sheets:', err);
       return false;
     }
-  }, [deleteWebhookUrl]);
+  }, []);
 
-  return { logToSheets, logDeleteToSheets, webhookUrl, deleteWebhookUrl, loading };
+  // Keep these for backwards compatibility but they're no longer exposed to clients
+  return { logToSheets, logDeleteToSheets, webhookUrl: null, deleteWebhookUrl: null, loading: false };
 }
