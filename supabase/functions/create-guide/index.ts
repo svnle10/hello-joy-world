@@ -236,8 +236,13 @@ serve(async (req) => {
     // Handle create action (default)
     const { email, password, full_name, phone, webhook_url, role = "guide" } = body;
 
-    if (!email || !password || !full_name) {
-      throw new Error("Missing required fields: email, password, full_name");
+    // Require either email or phone (at least one)
+    if (!email && !phone) {
+      throw new Error("يجب إدخال البريد الإلكتروني أو رقم الهاتف (أحدهما على الأقل)");
+    }
+
+    if (!password || !full_name) {
+      throw new Error("Missing required fields: password, full_name");
     }
 
     // Validate role
@@ -246,9 +251,9 @@ serve(async (req) => {
       throw new Error("Invalid role. Must be 'guide' or 'admin'");
     }
 
-    // Validate email format
+    // Validate email format if provided
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email) || email.length > 255) {
+    if (email && (!emailRegex.test(email) || email.length > 255)) {
       throw new Error("Invalid email format");
     }
 
@@ -272,17 +277,21 @@ serve(async (req) => {
       throw new Error("Invalid webhook URL. Must be HTTPS and not point to internal addresses.");
     }
 
-    console.log(`Creating ${role}:`, email);
+    console.log(`Creating ${role}:`, email || phone);
 
-    // Create user with phone if provided
+    // Create user - supports email only, phone only, or both
     const userCreateData: any = {
-      email,
       password,
-      email_confirm: true,
       user_metadata: { full_name },
     };
 
-    // Add phone to user creation if provided
+    // Add email if provided
+    if (email) {
+      userCreateData.email = email;
+      userCreateData.email_confirm = true;
+    }
+
+    // Add phone if provided
     if (phone) {
       userCreateData.phone = phone;
       userCreateData.phone_confirm = true;

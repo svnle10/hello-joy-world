@@ -149,8 +149,14 @@ export default function AdminPanel() {
   const handleCreateGuide = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newEmail || !newPassword || !newName) {
-      toast.error('Please fill in all required fields');
+    // Require either email or phone
+    if (!newEmail && !newPhone) {
+      toast.error('يجب إدخال البريد الإلكتروني أو رقم الهاتف');
+      return;
+    }
+
+    if (!newPassword || !newName) {
+      toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
 
@@ -202,8 +208,14 @@ export default function AdminPanel() {
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!adminEmail || !adminPassword || !adminName) {
-      toast.error('Please fill in all required fields');
+    // Require either email or phone
+    if (!adminEmail && !adminPhone) {
+      toast.error('يجب إدخال البريد الإلكتروني أو رقم الهاتف');
+      return;
+    }
+
+    if (!adminPassword || !adminName) {
+      toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
 
@@ -458,15 +470,15 @@ export default function AdminPanel() {
                   </DialogHeader>
                   <form onSubmit={handleCreateGuide} className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Full Name *</Label>
+                      <Label>الاسم الكامل *</Label>
                       <Input
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        placeholder="John Smith"
+                        placeholder="أدخل الاسم"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Email *</Label>
+                      <Label>البريد الإلكتروني (أو رقم الهاتف) *</Label>
                       <Input
                         type="email"
                         value={newEmail}
@@ -476,17 +488,17 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Password *</Label>
+                      <Label>كلمة المرور *</Label>
                       <Input
                         type="text"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Temporary password"
+                        placeholder="كلمة مرور مؤقتة"
                         dir="ltr"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Phone (optional)</Label>
+                      <Label>رقم الهاتف (أو البريد الإلكتروني) *</Label>
                       <Input
                         type="tel"
                         value={newPhone}
