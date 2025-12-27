@@ -146,7 +146,7 @@ export default function Auth() {
             <img 
               src={companyLogo} 
               alt="Sun Sky Camp Logo" 
-              className="h-24 w-auto mx-auto"
+              className="h-24 w-24 mx-auto rounded-full object-cover"
             />
           </div>
           <CardTitle className="text-2xl font-bold">
