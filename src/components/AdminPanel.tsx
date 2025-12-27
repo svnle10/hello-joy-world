@@ -61,6 +61,7 @@ export default function AdminPanel() {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newWebhook, setNewWebhook] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -68,6 +69,7 @@ export default function AdminPanel() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminName, setAdminName] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   
   // Edit guide form
@@ -174,6 +176,7 @@ export default function AdminPanel() {
           email: newEmail,
           password: newPassword,
           full_name: newName,
+          phone: newPhone || null,
           webhook_url: newWebhook || null,
         },
       });
@@ -185,6 +188,7 @@ export default function AdminPanel() {
       setNewEmail('');
       setNewPassword('');
       setNewName('');
+      setNewPhone('');
       setNewWebhook('');
       fetchData();
     } catch (error: any) {
@@ -216,6 +220,7 @@ export default function AdminPanel() {
           email: adminEmail,
           password: adminPassword,
           full_name: adminName,
+          phone: adminPhone || null,
           role: 'admin',
         },
       });
@@ -227,6 +232,7 @@ export default function AdminPanel() {
       setAdminEmail('');
       setAdminPassword('');
       setAdminName('');
+      setAdminPhone('');
       fetchData();
     } catch (error: any) {
       console.error('Error creating admin:', error);
@@ -480,6 +486,16 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label>Phone (optional)</Label>
+                      <Input
+                        type="tel"
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(e.target.value)}
+                        placeholder="+212612345678"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Webhook URL (optional)</Label>
                       <Input
                         type="url"
@@ -632,6 +648,16 @@ export default function AdminPanel() {
                         value={adminPassword}
                         onChange={(e) => setAdminPassword(e.target.value)}
                         placeholder="Temporary password"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone (optional)</Label>
+                      <Input
+                        type="tel"
+                        value={adminPhone}
+                        onChange={(e) => setAdminPhone(e.target.value)}
+                        placeholder="+212612345678"
                         dir="ltr"
                       />
                     </div>

@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Sun, Mountain, Phone } from 'lucide-react';
+import { Loader2, Sun, Mountain, Phone, Mail, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
@@ -14,12 +15,21 @@ const phoneSchema = z.object({
   phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل').regex(/^\+?[0-9]+$/, 'رقم هاتف غير صالح'),
 });
 
+const emailSchema = z.object({
+  email: z.string().email('بريد إلكتروني غير صالح'),
+  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+});
+
 export default function Auth() {
-  const { user, loading, signInWithPhone, verifyOtp } = useAuth();
+  const { user, loading, signInWithPhone, signInWithEmail, verifyOtp } = useAuth();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'input' | 'otp'>('input');
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
 
   if (loading) {
     return (
@@ -73,6 +83,36 @@ export default function Auth() {
     setIsLoading(false);
   };
 
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validation = emailSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast.error(validation.error.errors[0].message);
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signInWithEmail(email, password);
+    
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('بيانات الدخول غير صحيحة');
+      } else {
+        toast.error('حدث خطأ أثناء تسجيل الدخول');
+      }
+    } else {
+      toast.success('تم تسجيل الدخول بنجاح');
+    }
+    setIsLoading(false);
+  };
+
+  const handleTabChange = (value: string) => {
+    setAuthMethod(value as 'phone' | 'email');
+    setStep('input');
+    setOtp('');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-desert relative overflow-hidden">
       {/* Decorative elements */}
@@ -92,44 +132,11 @@ export default function Auth() {
             Sun Sky Camp
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {step === 'phone' ? 'تسجيل دخول المرشد السياحي' : 'أدخل رمز التحقق'}
+            {step === 'otp' ? 'أدخل رمز التحقق' : 'تسجيل دخول المرشد السياحي'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {step === 'phone' ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">رقم الهاتف</Label>
-                <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+212612345678"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                    className="text-left pr-10"
-                    dir="ltr"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  أدخل رقم هاتفك مع رمز البلد (مثال: +212)
-                </p>
-              </div>
-              <Button
-                type="submit"
-                className="w-full gradient-sunset hover:opacity-90 transition-opacity"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'إرسال رمز التحقق'
-                )}
-              </Button>
-            </form>
-          ) : (
+          {step === 'otp' ? (
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div className="space-y-4">
                 <Label className="text-center block">رمز التحقق</Label>
@@ -169,13 +176,119 @@ export default function Auth() {
                 variant="ghost"
                 className="w-full"
                 onClick={() => {
-                  setStep('phone');
+                  setStep('input');
                   setOtp('');
                 }}
               >
                 تغيير رقم الهاتف
               </Button>
             </form>
+          ) : (
+            <Tabs value={authMethod} onValueChange={handleTabChange} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="phone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  الهاتف
+                </TabsTrigger>
+                <TabsTrigger value="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  البريد
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="phone">
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">رقم الهاتف</Label>
+                    <div className="relative">
+                      <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+212612345678"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        className="text-left pr-10"
+                        dir="ltr"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      أدخل رقم هاتفك مع رمز البلد (مثال: +212)
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full gradient-sunset hover:opacity-90 transition-opacity"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'إرسال رمز التحقق'
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="email">
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">البريد الإلكتروني</Label>
+                    <div className="relative">
+                      <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="guide@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="text-left pr-10"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">كلمة المرور</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="text-left pr-10"
+                        dir="ltr"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full gradient-sunset hover:opacity-90 transition-opacity"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'تسجيل الدخول'
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
