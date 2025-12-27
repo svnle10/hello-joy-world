@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,25 +11,17 @@ import { toast } from 'sonner';
 import { Loader2, Sun, Mountain, Phone, Mail, Eye, EyeOff, Users, Shield } from 'lucide-react';
 import { z } from 'zod';
 import companyLogo from '@/assets/company-logo.png';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
-const phoneSchema = z.object({
-  phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل'),
-});
-
-// Helper function to clean phone number
 const cleanPhoneNumber = (phone: string) => {
   return phone.replace(/[\s\-\(\)]/g, '');
 };
-
-const emailSchema = z.object({
-  email: z.string().email('بريد إلكتروني غير صالح'),
-  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-});
 
 type UserRole = 'guide' | 'admin';
 
 export default function Auth() {
   const { user, loading, signInWithPhone, signInWithEmail } = useAuth();
+  const { t, dir } = useLanguage();
   const [phone, setPhone] = useState('');
   const [phonePassword, setPhonePassword] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +32,15 @@ export default function Auth() {
   const [step, setStep] = useState<'role' | 'input'>('role');
   const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+
+  const phoneSchema = z.object({
+    phone: z.string().min(10, t('auth.invalid_phone')),
+  });
+
+  const emailSchema = z.object({
+    email: z.string().email(t('auth.invalid_phone')),
+    password: z.string().min(6, t('auth.invalid_phone')),
+  });
 
   if (loading) {
     return (
@@ -69,12 +71,12 @@ export default function Auth() {
     }
 
     if (!/^\+?[0-9]+$/.test(cleanedPhone)) {
-      toast.error('رقم هاتف غير صالح');
+      toast.error(t('auth.invalid_phone'));
       return;
     }
 
     if (phonePassword.length < 6) {
-      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      toast.error(t('auth.invalid_phone'));
       return;
     }
 
@@ -82,13 +84,9 @@ export default function Auth() {
     const { error } = await signInWithPhone(cleanedPhone, phonePassword);
     
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('رقم الهاتف أو كلمة المرور غير صحيحة');
-      } else {
-        toast.error('حدث خطأ أثناء تسجيل الدخول');
-      }
+      toast.error(t('auth.invalid_credentials'));
     } else {
-      toast.success('تم تسجيل الدخول بنجاح');
+      toast.success(t('poll.success'));
     }
     setIsLoading(false);
   };
@@ -106,13 +104,9 @@ export default function Auth() {
     const { error } = await signInWithEmail(email, password);
     
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('بيانات الدخول غير صحيحة');
-      } else {
-        toast.error('حدث خطأ أثناء تسجيل الدخول');
-      }
+      toast.error(t('auth.invalid_credentials'));
     } else {
-      toast.success('تم تسجيل الدخول بنجاح');
+      toast.success(t('poll.success'));
     }
     setIsLoading(false);
   };
@@ -131,9 +125,14 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-desert relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 gradient-desert relative overflow-hidden" dir={dir}>
+      {/* Language Switcher */}
+      <div className="absolute top-4 end-4 z-10">
+        <LanguageSwitcher />
+      </div>
+      
       {/* Decorative elements */}
-      <div className="absolute top-10 right-10 opacity-20">
+      <div className="absolute top-10 end-10 opacity-20">
         <Sun className="h-32 w-32 text-primary-foreground" />
       </div>
       <div className="absolute bottom-0 left-0 right-0 opacity-10">
@@ -150,11 +149,10 @@ export default function Auth() {
             />
           </div>
           <CardTitle className="text-2xl font-bold">
-            Sun Sky Camp
+            {t('auth.title')}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {step === 'role' && 'اختر نوع الحساب'}
-            {step === 'input' && (selectedRole === 'guide' ? 'تسجيل دخول المرشد السياحي' : 'تسجيل دخول المسؤول')}
+            {t('auth.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -166,7 +164,7 @@ export default function Auth() {
                 className="w-full h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary/10 hover:border-primary transition-all"
               >
                 <Users className="h-8 w-8 text-primary" />
-                <span className="text-lg font-medium">مرشد سياحي</span>
+                <span className="text-lg font-medium">{t('analytics.total_guides')}</span>
               </Button>
               <Button
                 onClick={() => handleRoleSelect('admin')}
@@ -174,7 +172,7 @@ export default function Auth() {
                 className="w-full h-20 flex flex-col items-center justify-center gap-2 hover:bg-amber-500/10 hover:border-amber-500 transition-all"
               >
                 <Shield className="h-8 w-8 text-amber-500" />
-                <span className="text-lg font-medium">مسؤول (Admin)</span>
+                <span className="text-lg font-medium">{t('analytics.total_admins')}</span>
               </Button>
             </div>
           )}
@@ -185,52 +183,49 @@ export default function Auth() {
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="phone" className="flex items-center gap-2">
                     <Phone className="h-4 w-4" />
-                    الهاتف
+                    {t('auth.phone')}
                   </TabsTrigger>
                   <TabsTrigger value="email" className="flex items-center gap-2">
                     <Mail className="h-4 w-4" />
-                    البريد
+                    {t('email.customer_email').split(' ')[0]}
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="phone">
                   <form onSubmit={handlePhoneLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone">رقم الهاتف</Label>
+                      <Label htmlFor="phone">{t('auth.phone')}</Label>
                       <div className="relative">
-                        <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Phone className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="phone"
                           type="tel"
-                          placeholder="+212612345678"
+                          placeholder={t('auth.phone_placeholder')}
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           required
-                          className="text-left pr-10"
+                          className="text-left pe-10"
                           dir="ltr"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        أدخل رقم هاتفك مع رمز البلد (مثال: +212)
-                      </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phonePassword">كلمة المرور</Label>
+                      <Label htmlFor="phonePassword">{t('auth.password')}</Label>
                       <div className="relative">
                         <Input
                           id="phonePassword"
                           type={showPhonePassword ? 'text' : 'password'}
-                          placeholder="••••••••"
+                          placeholder={t('auth.password_placeholder')}
                           value={phonePassword}
                           onChange={(e) => setPhonePassword(e.target.value)}
                           required
-                          className="text-left pr-10"
+                          className="text-left pe-10"
                           dir="ltr"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPhonePassword(!showPhonePassword)}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                           {showPhonePassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -248,7 +243,7 @@ export default function Auth() {
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        'تسجيل الدخول'
+                        t('auth.login')
                       )}
                     </Button>
                   </form>
@@ -257,9 +252,9 @@ export default function Auth() {
                 <TabsContent value="email">
                   <form onSubmit={handleEmailLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">البريد الإلكتروني</Label>
+                      <Label htmlFor="email">{t('email.customer_email')}</Label>
                       <div className="relative">
-                        <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Mail className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="email"
                           type="email"
@@ -267,28 +262,28 @@ export default function Auth() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
-                          className="text-left pr-10"
+                          className="text-left pe-10"
                           dir="ltr"
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">كلمة المرور</Label>
+                      <Label htmlFor="password">{t('auth.password')}</Label>
                       <div className="relative">
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
+                          placeholder={t('auth.password_placeholder')}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
-                          className="text-left pr-10"
+                          className="text-left pe-10"
                           dir="ltr"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -306,7 +301,7 @@ export default function Auth() {
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        'تسجيل الدخول'
+                        t('auth.login')
                       )}
                     </Button>
                   </form>
@@ -319,7 +314,7 @@ export default function Auth() {
                 className="w-full mt-4"
                 onClick={handleBackToRoles}
               >
-                العودة لاختيار نوع الحساب
+                {t('common.cancel')}
               </Button>
             </>
           )}
