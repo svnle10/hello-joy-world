@@ -199,7 +199,17 @@ export default function AdminPanel() {
       fetchData();
     } catch (error: any) {
       console.error('Error creating guide:', error);
-      toast.error(error.message || 'Error creating guide');
+      // Handle edge function errors which may come as JSON
+      let errorMessage = 'Error creating guide';
+      if (error?.message) {
+        try {
+          const parsed = JSON.parse(error.message.replace('Edge function returned 400: Error, ', ''));
+          errorMessage = parsed.error || error.message;
+        } catch {
+          errorMessage = error.message;
+        }
+      }
+      toast.error(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -248,7 +258,16 @@ export default function AdminPanel() {
       fetchData();
     } catch (error: any) {
       console.error('Error creating admin:', error);
-      toast.error(error.message || 'Error creating admin');
+      let errorMessage = 'Error creating admin';
+      if (error?.message) {
+        try {
+          const parsed = JSON.parse(error.message.replace('Edge function returned 400: Error, ', ''));
+          errorMessage = parsed.error || error.message;
+        } catch {
+          errorMessage = error.message;
+        }
+      }
+      toast.error(errorMessage);
     } finally {
       setCreatingAdmin(false);
     }
