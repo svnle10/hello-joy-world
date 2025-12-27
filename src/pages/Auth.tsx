@@ -12,8 +12,13 @@ import { z } from 'zod';
 import companyLogo from '@/assets/company-logo.png';
 
 const phoneSchema = z.object({
-  phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل').regex(/^\+?[0-9]+$/, 'رقم هاتف غير صالح'),
+  phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل'),
 });
+
+// Helper function to clean phone number
+const cleanPhoneNumber = (phone: string) => {
+  return phone.replace(/[\s\-\(\)]/g, '');
+};
 
 const emailSchema = z.object({
   email: z.string().email('بريد إلكتروني غير صالح'),
@@ -55,9 +60,16 @@ export default function Auth() {
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = phoneSchema.safeParse({ phone });
+    const cleanedPhone = cleanPhoneNumber(phone);
+    
+    const validation = phoneSchema.safeParse({ phone: cleanedPhone });
     if (!validation.success) {
       toast.error(validation.error.errors[0].message);
+      return;
+    }
+
+    if (!/^\+?[0-9]+$/.test(cleanedPhone)) {
+      toast.error('رقم هاتف غير صالح');
       return;
     }
 
@@ -67,7 +79,7 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-    const { error } = await signInWithPhone(phone, phonePassword);
+    const { error } = await signInWithPhone(cleanedPhone, phonePassword);
     
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
