@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Mail, ClipboardCheck, LogOut, Settings, Loader2, AlertTriangle, Users, CalendarOff } from 'lucide-react';
@@ -10,9 +11,11 @@ import AdminPanel from '@/components/AdminPanel';
 import IssueReporting from '@/components/IssueReporting';
 import GuideGroups from '@/components/GuideGroups';
 import GuideAvailability from '@/components/GuideAvailability';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function Dashboard() {
   const { user, loading, isAdmin, signOut } = useAuth();
+  const { t, dir } = useLanguage();
   const [activeTab, setActiveTab] = useState('poll');
 
   if (loading) {
@@ -28,7 +31,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir={dir}>
       {/* Header */}
       <header className="gradient-desert sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
@@ -42,19 +45,22 @@ export default function Dashboard() {
                   Sun Sky Camp
                 </h1>
                 <p className="text-xs text-primary-foreground/80">
-                  Guide Dashboard
+                  {t('dashboard.title')}
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <LogOut className="h-4 w-4 me-2" />
+                <span className="hidden sm:inline">{t('dashboard.logout')}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -68,8 +74,8 @@ export default function Dashboard() {
               className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <ClipboardCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Daily Report</span>
-              <span className="sm:hidden">Report</span>
+              <span className="hidden sm:inline">{t('dashboard.daily_report')}</span>
+              <span className="sm:hidden">{t('dashboard.daily_report').split(' ')[0]}</span>
             </TabsTrigger>
             {!isAdmin && (
               <TabsTrigger
@@ -77,8 +83,8 @@ export default function Dashboard() {
                 className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
               >
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">My Groups</span>
-                <span className="sm:hidden">Groups</span>
+                <span className="hidden sm:inline">{t('dashboard.my_groups')}</span>
+                <span className="sm:hidden">{t('dashboard.my_groups').split(' ')[0]}</span>
               </TabsTrigger>
             )}
             {!isAdmin && (
@@ -87,8 +93,8 @@ export default function Dashboard() {
                 className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
               >
                 <CalendarOff className="h-4 w-4" />
-                <span className="hidden sm:inline">Availability</span>
-                <span className="sm:hidden">Days Off</span>
+                <span className="hidden sm:inline">{t('dashboard.availability')}</span>
+                <span className="sm:hidden">{t('dashboard.availability').split(' ')[0]}</span>
               </TabsTrigger>
             )}
             <TabsTrigger
@@ -96,16 +102,15 @@ export default function Dashboard() {
               className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline">Send Email</span>
-              <span className="sm:hidden">Email</span>
+              <span className="hidden sm:inline">{t('dashboard.send_email')}</span>
+              <span className="sm:hidden">{t('dashboard.send_email').split(' ')[0]}</span>
             </TabsTrigger>
             <TabsTrigger
               value="issues"
               className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
             >
               <AlertTriangle className="h-4 w-4" />
-              <span className="hidden sm:inline">Issues</span>
-              <span className="sm:hidden">Issues</span>
+              <span>{t('dashboard.issues')}</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger
@@ -113,7 +118,7 @@ export default function Dashboard() {
                 className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
               >
                 <Settings className="h-4 w-4" />
-                <span>Admin Panel</span>
+                <span>{t('dashboard.admin_panel')}</span>
               </TabsTrigger>
             )}
           </TabsList>
