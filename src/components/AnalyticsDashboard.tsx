@@ -8,6 +8,7 @@ import { Users, Activity, Mail, TrendingUp, UserX, AlertTriangle, Clock, XCircle
 import { format, subDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,7 @@ interface PendingRequest {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444'];
 
 const AnalyticsDashboard = () => {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<Stats>({
     totalGuides: 0,
     totalAdmins: 0,
@@ -294,11 +296,11 @@ const AnalyticsDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("تمت الموافقة على الطلب");
+      toast.success(t('analytics.approved'));
       fetchAnalytics();
     } catch (error) {
       console.error("Error approving request:", error);
-      toast.error("فشل في الموافقة على الطلب");
+      toast.error(t('analytics.approve_failed'));
     } finally {
       setProcessingId(null);
     }
@@ -320,14 +322,14 @@ const AnalyticsDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("تم رفض الطلب");
+      toast.success(t('analytics.rejected'));
       setRejectDialogOpen(false);
       setSelectedRequest(null);
       setRejectReason('');
       fetchAnalytics();
     } catch (error) {
       console.error("Error rejecting request:", error);
-      toast.error("فشل في رفض الطلب");
+      toast.error(t('analytics.reject_failed'));
     } finally {
       setProcessingId(null);
     }
@@ -353,7 +355,7 @@ const AnalyticsDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              المرشدين
+              {t('analytics.total_guides')}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -365,7 +367,7 @@ const AnalyticsDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              الأدمن
+              {t('analytics.total_admins')}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -377,7 +379,7 @@ const AnalyticsDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              صوتوا اليوم
+              {t('analytics.voted_today')}
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -389,7 +391,7 @@ const AnalyticsDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              الإيميلات
+              {t('analytics.emails_today')}
             </CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -401,7 +403,7 @@ const AnalyticsDashboard = () => {
         <Card className="border-yellow-500/50 bg-yellow-500/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-yellow-600">
-              غير متاحين
+              {t('analytics.unavailable')}
             </CardTitle>
             <CalendarX className="h-4 w-4 text-yellow-600" />
           </CardHeader>
@@ -413,7 +415,7 @@ const AnalyticsDashboard = () => {
         <Card className="border-red-500/50 bg-red-500/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-red-600">
-              المشاكل
+              {t('analytics.problems')}
             </CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
@@ -425,7 +427,7 @@ const AnalyticsDashboard = () => {
         <Card className="border-orange-500/50 bg-orange-500/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-orange-600">
-              التأجيلات
+              {t('analytics.postponements')}
             </CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
@@ -437,7 +439,7 @@ const AnalyticsDashboard = () => {
         <Card className="border-purple-500/50 bg-purple-500/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-purple-600">
-              عدم الحضور
+              {t('analytics.no_shows')}
             </CardTitle>
             <XCircle className="h-4 w-4 text-purple-600" />
           </CardHeader>
@@ -449,7 +451,7 @@ const AnalyticsDashboard = () => {
         <Card className="border-blue-500/50 bg-blue-500/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-blue-600">
-              طلبات معلقة
+              {t('analytics.pending_requests')}
             </CardTitle>
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
@@ -465,7 +467,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-600">
               <Clock className="h-5 w-5" />
-              طلبات أيام الراحة المعلقة
+              {t('analytics.pending_leave')}
               <Badge variant="secondary" className="ml-2 bg-blue-500/20 text-blue-700">
                 {pendingRequests.length}
               </Badge>
@@ -487,10 +489,10 @@ const AnalyticsDashboard = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{request.reason}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      طلب في: {format(new Date(request.created_at), 'MMM d, yyyy HH:mm')}
+                      {t('analytics.requested_at')}: {format(new Date(request.created_at), 'MMM d, yyyy HH:mm')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 mr-4">
+                  <div className="flex items-center gap-2 mx-4">
                     <Button
                       size="sm"
                       variant="outline"
@@ -502,8 +504,8 @@ const AnalyticsDashboard = () => {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle className="h-4 w-4 ml-1" />
-                          قبول
+                          <CheckCircle className="h-4 w-4 mx-1" />
+                          {t('analytics.approve')}
                         </>
                       )}
                     </Button>
@@ -514,8 +516,8 @@ const AnalyticsDashboard = () => {
                       onClick={() => openRejectDialog(request)}
                       disabled={processingId === request.id}
                     >
-                      <X className="h-4 w-4 ml-1" />
-                      رفض
+                      <X className="h-4 w-4 mx-1" />
+                      {t('analytics.reject')}
                     </Button>
                   </div>
                 </div>
@@ -529,15 +531,15 @@ const AnalyticsDashboard = () => {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>رفض طلب الإجازة</DialogTitle>
+            <DialogTitle>{t('analytics.reject_request')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
-              هل أنت متأكد من رفض طلب <strong>{selectedRequest?.full_name}</strong> ليوم{' '}
-              <strong>{selectedRequest && format(new Date(selectedRequest.unavailable_date), 'MMM d, yyyy')}</strong>؟
+              {t('analytics.reject_confirm')} <strong>{selectedRequest?.full_name}</strong> {t('analytics.for_day')}{' '}
+              <strong>{selectedRequest && format(new Date(selectedRequest.unavailable_date), 'MMM d, yyyy')}</strong>?
             </p>
             <Textarea
-              placeholder="سبب الرفض (اختياري)"
+              placeholder={t('analytics.reject_reason')}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               className="min-h-[80px]"
@@ -545,7 +547,7 @@ const AnalyticsDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              إلغاء
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -555,7 +557,7 @@ const AnalyticsDashboard = () => {
               {processingId !== null ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'تأكيد الرفض'
+                t('analytics.confirm_reject')
               )}
             </Button>
           </DialogFooter>
@@ -569,7 +571,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              7-Day Activity Trend
+              {t('analytics.trend_7day')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -609,7 +611,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Today's Activity Distribution
+              {t('analytics.activity_distribution')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -646,7 +648,7 @@ const AnalyticsDashboard = () => {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                No activity data for today
+                {t('analytics.no_activity_data')}
               </div>
             )}
           </CardContent>
@@ -655,7 +657,7 @@ const AnalyticsDashboard = () => {
         {/* Reports by Activity Bar Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Reports by Activity</CardTitle>
+            <CardTitle>{t('analytics.reports_by_activity')}</CardTitle>
           </CardHeader>
           <CardContent>
             {activityData.length > 0 ? (
@@ -676,7 +678,7 @@ const AnalyticsDashboard = () => {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                No activity data for today
+                {t('analytics.no_activity_data')}
               </div>
             )}
           </CardContent>
@@ -687,7 +689,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserX className="h-5 w-5" />
-              المرشدون المعينون الذين لم يصوتوا اليوم
+              {t('analytics.not_voted')}
               <Badge variant="secondary" className="ml-2">
                 {guidesNotVoted.length}
               </Badge>
@@ -708,7 +710,7 @@ const AnalyticsDashboard = () => {
               </div>
             ) : (
               <div className="flex items-center justify-center h-[100px] text-muted-foreground">
-                🎉 جميع المرشدين المعينين صوتوا اليوم!
+                {t('analytics.all_voted')}
               </div>
             )}
           </CardContent>
@@ -719,7 +721,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-yellow-600">
               <CalendarX className="h-5 w-5" />
-              المرشدون غير المتاحين اليوم
+              {t('analytics.unavailable_guides')}
               <Badge variant="secondary" className="ml-2 bg-yellow-500/20 text-yellow-700">
                 {unavailableGuides.length}
               </Badge>
@@ -742,7 +744,7 @@ const AnalyticsDashboard = () => {
               </div>
             ) : (
               <div className="flex items-center justify-center h-[100px] text-muted-foreground">
-                ✅ جميع المرشدين متاحون اليوم
+                {t('analytics.all_available')}
               </div>
             )}
           </CardContent>
@@ -753,7 +755,7 @@ const AnalyticsDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
-              المشاكل والتقارير اليوم
+              {t('analytics.today_issues')}
               <Badge variant="secondary" className="ml-2 bg-red-500/20 text-red-700">
                 {todayIssues.length}
               </Badge>
@@ -784,22 +786,22 @@ const AnalyticsDashboard = () => {
                             : 'text-purple-700 border-purple-500/50'
                         }
                       >
-                        {issue.issue_type === 'problem' ? 'مشكلة' : 
-                         issue.issue_type === 'postponement' ? 'تأجيل' : 'عدم حضور'}
+                        {issue.issue_type === 'problem' ? t('analytics.problem') : 
+                         issue.issue_type === 'postponement' ? t('analytics.postponement') : t('analytics.no_show')}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(issue.created_at), 'HH:mm')}
                       </span>
                     </div>
-                    <p className="text-sm font-medium">الحجز: {issue.booking_reference}</p>
+                    <p className="text-sm font-medium">{t('analytics.booking')}: {issue.booking_reference}</p>
                     <p className="text-sm text-muted-foreground truncate">{issue.description}</p>
-                    <p className="text-xs text-muted-foreground mt-1">بواسطة: {issue.guide_name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('analytics.by')}: {issue.guide_name}</p>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="flex items-center justify-center h-[100px] text-muted-foreground">
-                ✅ لا توجد مشاكل أو تقارير اليوم
+                {t('analytics.no_issues')}
               </div>
             )}
           </CardContent>
