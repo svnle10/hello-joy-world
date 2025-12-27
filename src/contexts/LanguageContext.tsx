@@ -52,6 +52,15 @@ const translations: Record<Language, Record<string, string>> = {
     'account.passwords_dont_match': 'Passwords do not match',
     'account.current_password_incorrect': 'Current password is incorrect',
     'account.password_min_length': 'Password must be at least 6 characters',
+    'account.name_updated': 'Name updated successfully',
+    'account.phone_updated': 'Phone updated successfully',
+    'account.email_verification_sent': 'Verification email sent to new address',
+    'account.email_verification_note': 'A verification email will be sent to confirm the change',
+    'account.update_failed': 'Failed to update',
+    'account.name_required': 'Name is required',
+    'account.phone_required': 'Phone number is required',
+    'account.email_required': 'Email is required',
+    'account.invalid_email': 'Invalid email address',
     
     // Daily Poll
     'poll.title': 'Daily Activity Report',
@@ -203,6 +212,15 @@ const translations: Record<Language, Record<string, string>> = {
     'account.passwords_dont_match': 'Les mots de passe ne correspondent pas',
     'account.current_password_incorrect': 'Mot de passe actuel incorrect',
     'account.password_min_length': 'Le mot de passe doit contenir au moins 6 caractères',
+    'account.name_updated': 'Nom mis à jour avec succès',
+    'account.phone_updated': 'Téléphone mis à jour avec succès',
+    'account.email_verification_sent': 'Email de vérification envoyé',
+    'account.email_verification_note': 'Un email de vérification sera envoyé pour confirmer le changement',
+    'account.update_failed': 'Échec de la mise à jour',
+    'account.name_required': 'Le nom est requis',
+    'account.phone_required': 'Le numéro de téléphone est requis',
+    'account.email_required': "L'email est requis",
+    'account.invalid_email': 'Adresse email invalide',
     
     // Daily Poll
     'poll.title': 'Rapport d\'Activité Quotidien',
@@ -354,6 +372,15 @@ const translations: Record<Language, Record<string, string>> = {
     'account.passwords_dont_match': 'كلمتا السر غير متطابقتين',
     'account.current_password_incorrect': 'كلمة السر الحالية غير صحيحة',
     'account.password_min_length': 'يجب أن تكون كلمة السر 6 أحرف على الأقل',
+    'account.name_updated': 'تم تحديث الاسم بنجاح',
+    'account.phone_updated': 'تم تحديث رقم الهاتف بنجاح',
+    'account.email_verification_sent': 'تم إرسال بريد التحقق إلى العنوان الجديد',
+    'account.email_verification_note': 'سيتم إرسال بريد تحقق لتأكيد التغيير',
+    'account.update_failed': 'فشل في التحديث',
+    'account.name_required': 'الاسم مطلوب',
+    'account.phone_required': 'رقم الهاتف مطلوب',
+    'account.email_required': 'البريد الإلكتروني مطلوب',
+    'account.invalid_email': 'عنوان بريد إلكتروني غير صالح',
     
     // Daily Poll
     'poll.title': 'التقرير اليومي للنشاط',
