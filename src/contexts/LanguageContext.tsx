@@ -81,6 +81,11 @@ const translations: Record<Language, Record<string, string>> = {
     'analytics.approve_failed': 'Failed to approve request',
     'analytics.reject_failed': 'Failed to reject request',
     'analytics.for_day': 'for day',
+    'analytics.all_requests': 'All Leave Requests',
+    'analytics.no_requests': 'No leave requests yet',
+    'analytics.status_pending': 'Pending',
+    'analytics.status_approved': 'Approved',
+    'analytics.status_rejected': 'Rejected',
     
     // Issues
     'issues.title': 'Issue Reporting',
@@ -207,6 +212,11 @@ const translations: Record<Language, Record<string, string>> = {
     'analytics.approve_failed': "Échec de l'approbation",
     'analytics.reject_failed': 'Échec du refus',
     'analytics.for_day': 'pour le jour',
+    'analytics.all_requests': 'Toutes les Demandes de Congé',
+    'analytics.no_requests': 'Aucune demande de congé',
+    'analytics.status_pending': 'En attente',
+    'analytics.status_approved': 'Approuvé',
+    'analytics.status_rejected': 'Refusé',
     
     // Issues
     'issues.title': 'Signalement de Problèmes',
@@ -333,6 +343,11 @@ const translations: Record<Language, Record<string, string>> = {
     'analytics.approve_failed': 'فشل في الموافقة على الطلب',
     'analytics.reject_failed': 'فشل في رفض الطلب',
     'analytics.for_day': 'ليوم',
+    'analytics.all_requests': 'جميع طلبات الإجازة',
+    'analytics.no_requests': 'لا توجد طلبات إجازة',
+    'analytics.status_pending': 'قيد الانتظار',
+    'analytics.status_approved': 'موافق عليه',
+    'analytics.status_rejected': 'مرفوض',
     
     // Issues
     'issues.title': 'الإبلاغ عن المشاكل',
