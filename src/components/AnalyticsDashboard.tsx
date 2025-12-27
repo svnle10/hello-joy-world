@@ -69,6 +69,18 @@ interface PendingRequest {
   full_name?: string;
 }
 
+interface AllRequest {
+  id: string;
+  guide_id: string;
+  unavailable_date: string;
+  reason: string;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+  responded_at: string | null;
+  full_name?: string;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444'];
 
 const AnalyticsDashboard = () => {
@@ -90,6 +102,7 @@ const AnalyticsDashboard = () => {
   const [unavailableGuides, setUnavailableGuides] = useState<UnavailableGuide[]>([]);
   const [todayIssues, setTodayIssues] = useState<IssueInfo[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<AllRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -190,6 +203,26 @@ const AnalyticsDashboard = () => {
         full_name: pendingProfiles?.find(profile => profile.user_id === p.guide_id)?.full_name || 'Unknown'
       }));
       setPendingRequests(pendingWithNames);
+
+      // Fetch all leave requests (for history section)
+      const { data: allRequestsData } = await supabase
+        .from("guide_unavailability")
+        .select("id, guide_id, unavailable_date, reason, status, admin_notes, created_at, responded_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      // Get profiles for all requests
+      const allGuideIds = [...new Set((allRequestsData || []).map(r => r.guide_id))];
+      const { data: allProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", allGuideIds.length > 0 ? allGuideIds : ['none']);
+
+      const allWithNames: AllRequest[] = (allRequestsData || []).map(r => ({
+        ...r,
+        full_name: allProfiles?.find(profile => profile.user_id === r.guide_id)?.full_name || 'Unknown'
+      }));
+      setAllRequests(allWithNames);
 
       // Fetch today's issues (problems, no-shows, postponements)
       const { data: issuesData } = await supabase
@@ -526,6 +559,75 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* All Leave Requests History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarX className="h-5 w-5" />
+            {t('analytics.all_requests')}
+            <Badge variant="secondary" className="ml-2">
+              {allRequests.length}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {allRequests.length > 0 ? (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {allRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                    request.status === 'pending' 
+                      ? 'bg-blue-500/5 border-blue-500/30' 
+                      : request.status === 'approved'
+                      ? 'bg-green-500/5 border-green-500/30'
+                      : 'bg-red-500/5 border-red-500/30'
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-semibold text-foreground">{request.full_name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {format(new Date(request.unavailable_date), 'EEEE, MMM d, yyyy')}
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          request.status === 'pending' 
+                            ? 'text-blue-600 border-blue-500/50 bg-blue-500/10' 
+                            : request.status === 'approved'
+                            ? 'text-green-600 border-green-500/50 bg-green-500/10'
+                            : 'text-red-600 border-red-500/50 bg-red-500/10'
+                        }`}
+                      >
+                        {request.status === 'pending' 
+                          ? t('analytics.status_pending')
+                          : request.status === 'approved'
+                          ? t('analytics.status_approved')
+                          : t('analytics.status_rejected')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{request.reason}</p>
+                    {request.admin_notes && (
+                      <p className="text-xs text-red-600 mt-1">
+                        {t('analytics.reject_reason')}: {request.admin_notes}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('analytics.requested_at')}: {format(new Date(request.created_at), 'MMM d, yyyy HH:mm')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-[100px] text-muted-foreground">
+              {t('analytics.no_requests')}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
