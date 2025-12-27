@@ -149,7 +149,68 @@ serve(async (req) => {
 
       console.log("Deleting user:", user_id);
 
-      // Delete user (this will cascade to profiles and user_roles due to FK constraints)
+      // First, manually delete related data that might not have ON DELETE CASCADE
+      // Delete from user_roles
+      const { error: rolesDeleteError } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", user_id);
+
+      if (rolesDeleteError) {
+        console.error("Error deleting user roles:", rolesDeleteError);
+      }
+
+      // Delete from profiles
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from("profiles")
+        .delete()
+        .eq("user_id", user_id);
+
+      if (profileDeleteError) {
+        console.error("Error deleting profile:", profileDeleteError);
+      }
+
+      // Delete from daily_assignments
+      const { error: assignmentsDeleteError } = await supabaseAdmin
+        .from("daily_assignments")
+        .delete()
+        .eq("guide_id", user_id);
+
+      if (assignmentsDeleteError) {
+        console.error("Error deleting assignments:", assignmentsDeleteError);
+      }
+
+      // Delete from daily_reports
+      const { error: reportsDeleteError } = await supabaseAdmin
+        .from("daily_reports")
+        .delete()
+        .eq("guide_id", user_id);
+
+      if (reportsDeleteError) {
+        console.error("Error deleting reports:", reportsDeleteError);
+      }
+
+      // Delete from issues
+      const { error: issuesDeleteError } = await supabaseAdmin
+        .from("issues")
+        .delete()
+        .eq("guide_id", user_id);
+
+      if (issuesDeleteError) {
+        console.error("Error deleting issues:", issuesDeleteError);
+      }
+
+      // Delete from email_logs
+      const { error: emailLogsDeleteError } = await supabaseAdmin
+        .from("email_logs")
+        .delete()
+        .eq("guide_id", user_id);
+
+      if (emailLogsDeleteError) {
+        console.error("Error deleting email logs:", emailLogsDeleteError);
+      }
+
+      // Now delete the user from auth
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
 
       if (deleteError) throw deleteError;
