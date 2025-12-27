@@ -263,6 +263,30 @@ export type Database = {
           },
         ]
       }
+      guide_unavailability: {
+        Row: {
+          created_at: string
+          guide_id: string
+          id: string
+          reason: string
+          unavailable_date: string
+        }
+        Insert: {
+          created_at?: string
+          guide_id: string
+          id?: string
+          reason: string
+          unavailable_date: string
+        }
+        Update: {
+          created_at?: string
+          guide_id?: string
+          id?: string
+          reason?: string
+          unavailable_date?: string
+        }
+        Relationships: []
+      }
       issue_attachments: {
         Row: {
           created_at: string
