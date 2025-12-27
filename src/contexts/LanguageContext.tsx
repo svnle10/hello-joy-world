@@ -12,7 +12,7 @@ interface LanguageContextType {
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Auth
-    'auth.title': 'Camp Guide Dashboard',
+    'auth.title': 'Sun Sky Camp Dashboard',
     'auth.subtitle': 'Sign in to manage tours and schedules',
     'auth.phone': 'Phone Number',
     'auth.password': 'Password',
@@ -124,7 +124,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
   fr: {
     // Auth
-    'auth.title': 'Tableau de Bord des Guides',
+    'auth.title': 'Sun Sky Camp Dashboard',
     'auth.subtitle': 'Connectez-vous pour gérer les visites',
     'auth.phone': 'Numéro de Téléphone',
     'auth.password': 'Mot de Passe',
@@ -236,7 +236,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
   ar: {
     // Auth
-    'auth.title': 'لوحة تحكم المرشدين',
+    'auth.title': 'Sun Sky Camp Dashboard',
     'auth.subtitle': 'سجل دخولك لإدارة الجولات',
     'auth.phone': 'رقم الهاتف',
     'auth.password': 'كلمة السر',
