@@ -46,11 +46,20 @@ function isValidWebhookUrl(url: string): boolean {
   }
 }
 
-// Validate phone number format
+// Validate and normalize phone number format
+function normalizePhone(phone: string): string {
+  // Remove all non-digit characters except leading +
+  const hasPlus = phone.startsWith('+');
+  const digitsOnly = phone.replace(/\D/g, '');
+  return hasPlus ? `+${digitsOnly}` : digitsOnly;
+}
+
 function isValidPhone(phone: string): boolean {
-  // Allow international format with + and digits
+  // Normalize first, then validate
+  const normalized = normalizePhone(phone);
+  // Allow international format: + followed by 7-15 digits, or just 7-15 digits
   const phoneRegex = /^\+?[1-9]\d{6,14}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+  return phoneRegex.test(normalized);
 }
 
 serve(async (req) => {
@@ -291,9 +300,10 @@ serve(async (req) => {
       userCreateData.email_confirm = true;
     }
 
-    // Add phone if provided
-    if (phone) {
-      userCreateData.phone = phone;
+    // Add phone if provided (normalized)
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
+    if (normalizedPhone) {
+      userCreateData.phone = normalizedPhone;
       userCreateData.phone_confirm = true;
     }
 
@@ -304,7 +314,7 @@ serve(async (req) => {
     // Update profile with webhook URL and phone if provided
     const profileUpdate: any = {};
     if (webhook_url) profileUpdate.webhook_url = webhook_url;
-    if (phone) profileUpdate.phone = phone;
+    if (normalizedPhone) profileUpdate.phone = normalizedPhone;
 
     if (Object.keys(profileUpdate).length > 0) {
       const { error: profileError } = await supabaseAdmin
