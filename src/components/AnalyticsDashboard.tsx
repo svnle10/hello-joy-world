@@ -1,10 +1,20 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { Users, Activity, Mail, TrendingUp, UserX, AlertTriangle, Clock, XCircle, CalendarX } from "lucide-react";
+import { Users, Activity, Mail, TrendingUp, UserX, AlertTriangle, Clock, XCircle, CalendarX, CheckCircle, X, Loader2 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Stats {
   totalGuides: number;
@@ -15,6 +25,7 @@ interface Stats {
   problemsCount: number;
   postponementsCount: number;
   noShowsCount: number;
+  pendingRequests: number;
 }
 
 interface ActivityData {
@@ -48,6 +59,15 @@ interface IssueInfo {
   created_at: string;
 }
 
+interface PendingRequest {
+  id: string;
+  guide_id: string;
+  unavailable_date: string;
+  reason: string;
+  created_at: string;
+  full_name?: string;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444'];
 
 const AnalyticsDashboard = () => {
@@ -60,13 +80,19 @@ const AnalyticsDashboard = () => {
     problemsCount: 0,
     postponementsCount: 0,
     noShowsCount: 0,
+    pendingRequests: 0,
   });
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
   const [dailyTrend, setDailyTrend] = useState<DailyTrend[]>([]);
   const [guidesNotVoted, setGuidesNotVoted] = useState<GuideInfo[]>([]);
   const [unavailableGuides, setUnavailableGuides] = useState<UnavailableGuide[]>([]);
   const [todayIssues, setTodayIssues] = useState<IssueInfo[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     fetchAnalytics();
@@ -123,11 +149,12 @@ const AnalyticsDashboard = () => {
         .select("*", { count: "exact", head: true })
         .gte("sent_at", todayStart);
 
-      // Fetch unavailable guides for today
+      // Fetch unavailable guides for today (only approved)
       const { data: unavailableData } = await supabase
         .from("guide_unavailability")
-        .select("guide_id, reason")
-        .eq("unavailable_date", today);
+        .select("guide_id, reason, status")
+        .eq("unavailable_date", today)
+        .eq("status", "approved");
 
       // Get profiles for unavailable guides
       const unavailableGuideIds = (unavailableData || []).map(u => u.guide_id);
@@ -141,6 +168,26 @@ const AnalyticsDashboard = () => {
         full_name: unavailableProfiles?.find(p => p.user_id === u.guide_id)?.full_name || 'Unknown'
       }));
       setUnavailableGuides(unavailableWithNames);
+
+      // Fetch pending leave requests
+      const { data: pendingData } = await supabase
+        .from("guide_unavailability")
+        .select("id, guide_id, unavailable_date, reason, created_at")
+        .eq("status", "pending")
+        .order("unavailable_date", { ascending: true });
+
+      // Get profiles for pending requests
+      const pendingGuideIds = (pendingData || []).map(p => p.guide_id);
+      const { data: pendingProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", pendingGuideIds.length > 0 ? pendingGuideIds : ['none']);
+
+      const pendingWithNames: PendingRequest[] = (pendingData || []).map(p => ({
+        ...p,
+        full_name: pendingProfiles?.find(profile => profile.user_id === p.guide_id)?.full_name || 'Unknown'
+      }));
+      setPendingRequests(pendingWithNames);
 
       // Fetch today's issues (problems, no-shows, postponements)
       const { data: issuesData } = await supabase
@@ -179,6 +226,7 @@ const AnalyticsDashboard = () => {
         problemsCount,
         postponementsCount,
         noShowsCount,
+        pendingRequests: pendingData?.length || 0,
       });
 
       // Fetch activity distribution
@@ -231,6 +279,63 @@ const AnalyticsDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApprove = async (requestId: string) => {
+    setProcessingId(requestId);
+    try {
+      const { error } = await supabase
+        .from("guide_unavailability")
+        .update({
+          status: "approved",
+          responded_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      toast.success("تمت الموافقة على الطلب");
+      fetchAnalytics();
+    } catch (error) {
+      console.error("Error approving request:", error);
+      toast.error("فشل في الموافقة على الطلب");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedRequest) return;
+    
+    setProcessingId(selectedRequest.id);
+    try {
+      const { error } = await supabase
+        .from("guide_unavailability")
+        .update({
+          status: "rejected",
+          admin_notes: rejectReason || undefined,
+          responded_at: new Date().toISOString(),
+        })
+        .eq("id", selectedRequest.id);
+
+      if (error) throw error;
+
+      toast.success("تم رفض الطلب");
+      setRejectDialogOpen(false);
+      setSelectedRequest(null);
+      setRejectReason('');
+      fetchAnalytics();
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      toast.error("فشل في رفض الطلب");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const openRejectDialog = (request: PendingRequest) => {
+    setSelectedRequest(request);
+    setRejectDialogOpen(true);
   };
 
   if (loading) {
@@ -340,7 +445,122 @@ const AnalyticsDashboard = () => {
             <div className="text-2xl font-bold text-purple-600">{stats.noShowsCount}</div>
           </CardContent>
         </Card>
+
+        <Card className="border-blue-500/50 bg-blue-500/5">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-blue-600">
+              طلبات معلقة
+            </CardTitle>
+            <Clock className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.pendingRequests}</div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Pending Leave Requests */}
+      {pendingRequests.length > 0 && (
+        <Card className="border-blue-500/50 bg-blue-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-600">
+              <Clock className="h-5 w-5" />
+              طلبات أيام الراحة المعلقة
+              <Badge variant="secondary" className="ml-2 bg-blue-500/20 text-blue-700">
+                {pendingRequests.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {pendingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-background border border-blue-500/30"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-foreground">{request.full_name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {format(new Date(request.unavailable_date), 'EEEE, MMM d, yyyy')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{request.reason}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      طلب في: {format(new Date(request.created_at), 'MMM d, yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mr-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-green-600 border-green-500 hover:bg-green-500/10"
+                      onClick={() => handleApprove(request.id)}
+                      disabled={processingId === request.id}
+                    >
+                      {processingId === request.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 ml-1" />
+                          قبول
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 border-red-500 hover:bg-red-500/10"
+                      onClick={() => openRejectDialog(request)}
+                      disabled={processingId === request.id}
+                    >
+                      <X className="h-4 w-4 ml-1" />
+                      رفض
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>رفض طلب الإجازة</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              هل أنت متأكد من رفض طلب <strong>{selectedRequest?.full_name}</strong> ليوم{' '}
+              <strong>{selectedRequest && format(new Date(selectedRequest.unavailable_date), 'MMM d, yyyy')}</strong>؟
+            </p>
+            <Textarea
+              placeholder="سبب الرفض (اختياري)"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              إلغاء
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={processingId !== null}
+            >
+              {processingId !== null ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'تأكيد الرفض'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

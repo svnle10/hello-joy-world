@@ -265,24 +265,36 @@ export type Database = {
       }
       guide_unavailability: {
         Row: {
+          admin_notes: string | null
           created_at: string
           guide_id: string
           id: string
           reason: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string
           unavailable_date: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           guide_id: string
           id?: string
           reason: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
           unavailable_date: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           guide_id?: string
           id?: string
           reason?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
           unavailable_date?: string
         }
         Relationships: []
