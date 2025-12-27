@@ -168,11 +168,12 @@ export default function MyAccount() {
     
     try {
       // First verify current password by signing in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        phone: user?.phone || '',
-        password: currentPassword,
-      });
+      // Use either email or phone based on what the user has
+      const signInCredentials = user?.email 
+        ? { email: user.email, password: currentPassword }
+        : { phone: user?.phone || '', password: currentPassword };
+      
+      const { error: signInError } = await supabase.auth.signInWithPassword(signInCredentials);
 
       if (signInError) {
         toast.error(t('account.current_password_incorrect'));
