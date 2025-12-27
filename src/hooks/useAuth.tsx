@@ -8,9 +8,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
-  signInWithPhone: (phone: string) => Promise<{ error: Error | null }>;
+  signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -99,10 +98,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signInWithPhone = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
+  const signInWithPhone = async (phone: string, password: string) => {
+    // Convert phone to pseudo-email format for Supabase auth
+    const phoneEmail = `${phone.replace(/\+/g, '')}@phone.local`;
+    
+    const { error, data } = await supabase.auth.signInWithPassword({
+      email: phoneEmail,
+      password,
     });
+    
+    if (!error && data?.user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+      
+      logLoginToSheets(phone, profileData?.full_name || '');
+    }
     
     return { error: error as Error | null };
   };
@@ -127,26 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const verifyOtp = async (phone: string, token: string) => {
-    const { error, data } = await supabase.auth.verifyOtp({
-      phone,
-      token,
-      type: 'sms',
-    });
-    
-    if (!error && data?.user) {
-      // Fetch user's name for logging
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', data.user.id)
-        .maybeSingle();
-      
-      logLoginToSheets(phone, profileData?.full_name || '');
-    }
-    
-    return { error: error as Error | null };
-  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -156,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, signInWithPhone, signInWithEmail, verifyOtp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, signInWithPhone, signInWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   );

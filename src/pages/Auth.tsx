@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2, Sun, Mountain, Phone, Mail, Eye, EyeOff, Users, Shield } from 'lucide-react';
 import { z } from 'zod';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import companyLogo from '@/assets/company-logo.png';
 
 const phoneSchema = z.object({
@@ -24,14 +23,15 @@ const emailSchema = z.object({
 type UserRole = 'guide' | 'admin';
 
 export default function Auth() {
-  const { user, loading, signInWithPhone, signInWithEmail, verifyOtp } = useAuth();
+  const { user, loading, signInWithPhone, signInWithEmail } = useAuth();
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [phonePassword, setPhonePassword] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showPhonePassword, setShowPhonePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'role' | 'input' | 'otp'>('role');
+  const [step, setStep] = useState<'role' | 'input'>('role');
   const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
@@ -52,7 +52,7 @@ export default function Auth() {
     setStep('input');
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const validation = phoneSchema.safeParse({ phone });
@@ -61,31 +61,20 @@ export default function Auth() {
       return;
     }
 
-    setIsLoading(true);
-    const { error } = await signInWithPhone(phone);
-    
-    if (error) {
-      toast.error('حدث خطأ أثناء إرسال رمز التحقق');
-    } else {
-      toast.success('تم إرسال رمز التحقق إلى هاتفك');
-      setStep('otp');
-    }
-    setIsLoading(false);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (otp.length !== 6) {
-      toast.error('يرجى إدخال رمز التحقق كاملاً');
+    if (phonePassword.length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
     }
 
     setIsLoading(true);
-    const { error } = await verifyOtp(phone, otp);
+    const { error } = await signInWithPhone(phone, phonePassword);
     
     if (error) {
-      toast.error('رمز التحقق غير صحيح');
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('رقم الهاتف أو كلمة المرور غير صحيحة');
+      } else {
+        toast.error('حدث خطأ أثناء تسجيل الدخول');
+      }
     } else {
       toast.success('تم تسجيل الدخول بنجاح');
     }
@@ -118,16 +107,15 @@ export default function Auth() {
 
   const handleTabChange = (value: string) => {
     setAuthMethod(value as 'phone' | 'email');
-    setOtp('');
   };
 
   const handleBackToRoles = () => {
     setStep('role');
     setSelectedRole(null);
     setPhone('');
+    setPhonePassword('');
     setEmail('');
     setPassword('');
-    setOtp('');
   };
 
   return (
@@ -155,7 +143,6 @@ export default function Auth() {
           <CardDescription className="text-muted-foreground">
             {step === 'role' && 'اختر نوع الحساب'}
             {step === 'input' && (selectedRole === 'guide' ? 'تسجيل دخول المرشد السياحي' : 'تسجيل دخول المسؤول')}
-            {step === 'otp' && 'أدخل رمز التحقق'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,55 +167,6 @@ export default function Auth() {
             </div>
           )}
 
-          {step === 'otp' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
-              <div className="space-y-4">
-                <Label className="text-center block">رمز التحقق</Label>
-                <div className="flex justify-center" dir="ltr">
-                  <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={setOtp}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  تم إرسال رمز التحقق إلى {phone}
-                </p>
-              </div>
-              <Button
-                type="submit"
-                className="w-full gradient-sunset hover:opacity-90 transition-opacity"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'تأكيد'
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => {
-                  setStep('input');
-                  setOtp('');
-                }}
-              >
-                تغيير رقم الهاتف
-              </Button>
-            </form>
-          )}
-
           {step === 'input' && (
             <>
               <Tabs value={authMethod} onValueChange={handleTabChange} className="space-y-4">
@@ -244,7 +182,7 @@ export default function Auth() {
                 </TabsList>
 
                 <TabsContent value="phone">
-                  <form onSubmit={handleSendOtp} className="space-y-4">
+                  <form onSubmit={handlePhoneLogin} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">رقم الهاتف</Label>
                       <div className="relative">
@@ -264,6 +202,32 @@ export default function Auth() {
                         أدخل رقم هاتفك مع رمز البلد (مثال: +212)
                       </p>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phonePassword">كلمة المرور</Label>
+                      <div className="relative">
+                        <Input
+                          id="phonePassword"
+                          type={showPhonePassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={phonePassword}
+                          onChange={(e) => setPhonePassword(e.target.value)}
+                          required
+                          className="text-left pr-10"
+                          dir="ltr"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPhonePassword(!showPhonePassword)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPhonePassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                     <Button
                       type="submit"
                       className="w-full gradient-sunset hover:opacity-90 transition-opacity"
@@ -272,7 +236,7 @@ export default function Auth() {
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        'إرسال رمز التحقق'
+                        'تسجيل الدخول'
                       )}
                     </Button>
                   </form>
