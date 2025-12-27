@@ -18,6 +18,8 @@ interface UnavailabilityRecord {
   unavailable_date: string;
   reason: string;
   created_at: string;
+  status: string;
+  admin_notes?: string;
 }
 
 export default function GuideAvailability() {
@@ -39,7 +41,7 @@ export default function GuideAvailability() {
     try {
       const { data, error } = await supabase
         .from('guide_unavailability')
-        .select('*')
+        .select('id, unavailable_date, reason, created_at, status, admin_notes')
         .eq('guide_id', user?.id)
         .order('unavailable_date', { ascending: true });
 
@@ -235,24 +237,47 @@ export default function GuideAvailability() {
               {futureRecords.map((record) => (
                 <div
                   key={record.id}
-                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50"
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-lg border",
+                    record.status === 'pending' && "bg-yellow-500/10 border-yellow-500/50",
+                    record.status === 'approved' && "bg-green-500/10 border-green-500/50",
+                    record.status === 'rejected' && "bg-red-500/10 border-red-500/50"
+                  )}
                 >
                   <div className="flex-1">
-                    <div className="font-medium text-foreground">
-                      {format(new Date(record.unavailable_date), 'EEEE, MMMM d, yyyy')}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {format(new Date(record.unavailable_date), 'EEEE, MMMM d, yyyy')}
+                      </span>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full font-medium",
+                        record.status === 'pending' && "bg-yellow-500/20 text-yellow-700",
+                        record.status === 'approved' && "bg-green-500/20 text-green-700",
+                        record.status === 'rejected' && "bg-red-500/20 text-red-700"
+                      )}>
+                        {record.status === 'pending' ? '⏳ Pending' : 
+                         record.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                      </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
                       {record.reason}
                     </div>
+                    {record.status === 'rejected' && record.admin_notes && (
+                      <div className="text-sm text-red-600 mt-1">
+                        Rejection reason: {record.admin_notes}
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(record.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {record.status === 'pending' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(record.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
