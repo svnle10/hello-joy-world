@@ -150,6 +150,16 @@ serve(async (req) => {
       console.log("Deleting user:", user_id);
 
       // First, manually delete related data that might not have ON DELETE CASCADE
+      // Unlink groups from this guide (set guide_id to null)
+      const { error: groupsUnlinkError } = await supabaseAdmin
+        .from("groups")
+        .update({ guide_id: null })
+        .eq("guide_id", user_id);
+
+      if (groupsUnlinkError) {
+        console.error("Error unlinking groups:", groupsUnlinkError);
+      }
+
       // Delete from user_roles
       const { error: rolesDeleteError } = await supabaseAdmin
         .from("user_roles")
