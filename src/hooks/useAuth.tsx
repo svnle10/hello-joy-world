@@ -99,11 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithPhone = async (phone: string, password: string) => {
-    // Convert phone to pseudo-email format for Supabase auth
-    const phoneEmail = `${phone.replace(/\+/g, '')}@phone.local`;
-    
+    // Use phone number directly for authentication
     const { error, data } = await supabase.auth.signInWithPassword({
-      email: phoneEmail,
+      phone,
       password,
     });
     
