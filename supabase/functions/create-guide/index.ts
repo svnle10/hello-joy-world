@@ -46,6 +46,13 @@ function isValidWebhookUrl(url: string): boolean {
   }
 }
 
+// Validate phone number format
+function isValidPhone(phone: string): boolean {
+  // Allow international format with + and digits
+  const phoneRegex = /^\+?[1-9]\d{6,14}$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -156,7 +163,7 @@ serve(async (req) => {
     }
 
     // Handle create action (default)
-    const { email, password, full_name, webhook_url, role = "guide" } = body;
+    const { email, password, full_name, phone, webhook_url, role = "guide" } = body;
 
     if (!email || !password || !full_name) {
       throw new Error("Missing required fields: email, password, full_name");
@@ -184,6 +191,11 @@ serve(async (req) => {
       throw new Error("Full name must be between 2 and 100 characters");
     }
 
+    // Validate phone if provided
+    if (phone && !isValidPhone(phone)) {
+      throw new Error("Invalid phone number format. Use international format (e.g., +212612345678)");
+    }
+
     // Validate webhook_url if provided
     if (webhook_url && !isValidWebhookUrl(webhook_url)) {
       throw new Error("Invalid webhook URL. Must be HTTPS and not point to internal addresses.");
@@ -191,21 +203,33 @@ serve(async (req) => {
 
     console.log(`Creating ${role}:`, email);
 
-    // Create user
-    const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    // Create user with phone if provided
+    const userCreateData: any = {
       email,
       password,
       email_confirm: true,
       user_metadata: { full_name },
-    });
+    };
+
+    // Add phone to user creation if provided
+    if (phone) {
+      userCreateData.phone = phone;
+      userCreateData.phone_confirm = true;
+    }
+
+    const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser(userCreateData);
 
     if (createError) throw createError;
 
-    // Update profile with webhook URL if provided
-    if (webhook_url) {
+    // Update profile with webhook URL and phone if provided
+    const profileUpdate: any = {};
+    if (webhook_url) profileUpdate.webhook_url = webhook_url;
+    if (phone) profileUpdate.phone = phone;
+
+    if (Object.keys(profileUpdate).length > 0) {
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .update({ webhook_url })
+        .update(profileUpdate)
         .eq("user_id", newUserData.user.id);
 
       if (profileError) {
@@ -222,7 +246,7 @@ serve(async (req) => {
       console.error("Role assignment error:", roleError2);
     }
 
-    console.log("Guide created successfully:", newUserData.user.id);
+    console.log("User created successfully:", newUserData.user.id);
 
     return new Response(JSON.stringify({ success: true, user: newUserData.user }), {
       status: 200,

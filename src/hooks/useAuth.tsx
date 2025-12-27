@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   signInWithPhone: (phone: string) => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(!!data);
   };
 
-  const logLoginToSheets = useCallback(async (userEmail: string, userName: string) => {
+  const logLoginToSheets = useCallback(async (userIdentifier: string, userName: string) => {
     try {
       const { data } = await supabase
         .from('app_settings')
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             '#Date': now.toISOString().split('T')[0],
             '#Operation_Time': timeOnly,
-            '#Guide': userName || userEmail,
+            '#Guide': userName || userIdentifier,
             '#Activity': 'تسجيل دخول (Login)',
           }),
         }).catch(err => console.error('Login log error:', err));
@@ -102,6 +103,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOtp({
       phone,
     });
+    
+    return { error: error as Error | null };
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error, data } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (!error && data?.user) {
+      // Fetch user's name for logging
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+      
+      logLoginToSheets(email, profileData?.full_name || '');
+    }
     
     return { error: error as Error | null };
   };
@@ -135,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, signInWithPhone, verifyOtp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, signInWithPhone, signInWithEmail, verifyOtp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
