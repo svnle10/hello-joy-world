@@ -6,19 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Sun, Mountain } from 'lucide-react';
+import { Loader2, Sun, Mountain, Phone } from 'lucide-react';
 import { z } from 'zod';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+const phoneSchema = z.object({
+  phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل').regex(/^\+?[0-9]+$/, 'رقم هاتف غير صالح'),
 });
 
 export default function Auth() {
-  const { user, loading, signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { user, loading, signInWithPhone, verifyOtp } = useAuth();
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
 
   if (loading) {
     return (
@@ -32,26 +33,42 @@ export default function Auth() {
     return <Navigate to="/" replace />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = loginSchema.safeParse({ email, password });
+    const validation = phoneSchema.safeParse({ phone });
     if (!validation.success) {
       toast.error(validation.error.errors[0].message);
       return;
     }
 
     setIsLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signInWithPhone(phone);
     
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password');
-      } else {
-        toast.error('An error occurred while signing in');
-      }
+      toast.error('حدث خطأ أثناء إرسال رمز التحقق');
     } else {
-      toast.success('Signed in successfully');
+      toast.success('تم إرسال رمز التحقق إلى هاتفك');
+      setStep('otp');
+    }
+    setIsLoading(false);
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (otp.length !== 6) {
+      toast.error('يرجى إدخال رمز التحقق كاملاً');
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await verifyOtp(phone, otp);
+    
+    if (error) {
+      toast.error('رمز التحقق غير صحيح');
+    } else {
+      toast.success('تم تسجيل الدخول بنجاح');
     }
     setIsLoading(false);
   };
@@ -75,48 +92,91 @@ export default function Auth() {
             Sun Sky Camp
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Tour Guide Login
+            {step === 'phone' ? 'تسجيل دخول المرشد السياحي' : 'أدخل رمز التحقق'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="guide@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="text-left"
-                dir="ltr"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                dir="ltr"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full gradient-sunset hover:opacity-90 transition-opacity"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
+          {step === 'phone' ? (
+            <form onSubmit={handleSendOtp} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">رقم الهاتف</Label>
+                <div className="relative">
+                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+212612345678"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="text-left pr-10"
+                    dir="ltr"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  أدخل رقم هاتفك مع رمز البلد (مثال: +212)
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="w-full gradient-sunset hover:opacity-90 transition-opacity"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'إرسال رمز التحقق'
+                )}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div className="space-y-4">
+                <Label className="text-center block">رمز التحقق</Label>
+                <div className="flex justify-center" dir="ltr">
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  تم إرسال رمز التحقق إلى {phone}
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="w-full gradient-sunset hover:opacity-90 transition-opacity"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'تأكيد'
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setStep('phone');
+                  setOtp('');
+                }}
+              >
+                تغيير رقم الهاتف
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
