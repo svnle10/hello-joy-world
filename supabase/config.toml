@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.send-daily-poll]
 verify_jwt = false
+
+[functions.log-to-n8n]
+verify_jwt = true
+
+[functions.log-to-sheets]
+verify_jwt = true
