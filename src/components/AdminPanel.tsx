@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings, Shield, LineChart, CalendarDays, UsersRound } from 'lucide-react';
 import { format } from 'date-fns';
 import SheetsWebhookSettings from './SheetsWebhookSettings';
+import WebhookSettings from './WebhookSettings';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import DailyAssignments from './DailyAssignments';
 import { GroupManagement } from './GroupManagement';
@@ -861,7 +862,8 @@ export default function AdminPanel() {
 
         {/* Settings Tab */}
         <TabsContent value="settings">
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <WebhookSettings />
             <SheetsWebhookSettings />
           </div>
         </TabsContent>
