@@ -17,7 +17,7 @@ import MyAccount from '@/components/MyAccount';
 export default function Dashboard() {
   const { user, loading, isAdmin, signOut } = useAuth();
   const { t, dir } = useLanguage();
-  const [activeTab, setActiveTab] = useState('poll');
+  const [activeTab, setActiveTab] = useState(() => isAdmin ? 'issues' : 'poll');
 
   if (loading) {
     return (
@@ -69,15 +69,17 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full h-auto p-1 bg-muted/50 ${isAdmin ? 'grid-cols-5' : 'grid-cols-6'}`}>
-            <TabsTrigger
-              value="poll"
-              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
-            >
-              <ClipboardCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('dashboard.daily_report')}</span>
-              <span className="sm:hidden">{t('dashboard.daily_report').split(' ')[0]}</span>
-            </TabsTrigger>
+          <TabsList className={`grid w-full h-auto p-1 bg-muted/50 ${isAdmin ? 'grid-cols-3' : 'grid-cols-6'}`}>
+            {!isAdmin && (
+              <TabsTrigger
+                value="poll"
+                className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">{t('dashboard.daily_report')}</span>
+                <span className="sm:hidden">{t('dashboard.daily_report').split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
             {!isAdmin && (
               <TabsTrigger
                 value="groups"
@@ -98,14 +100,16 @@ export default function Dashboard() {
                 <span className="sm:hidden">{t('dashboard.availability').split(' ')[0]}</span>
               </TabsTrigger>
             )}
-            <TabsTrigger
-              value="email"
-              className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
-            >
-              <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('dashboard.send_email')}</span>
-              <span className="sm:hidden">{t('dashboard.send_email').split(' ')[0]}</span>
-            </TabsTrigger>
+            {!isAdmin && (
+              <TabsTrigger
+                value="email"
+                className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
+              >
+                <Mail className="h-4 w-4" />
+                <span className="hidden sm:inline">{t('dashboard.send_email')}</span>
+                <span className="sm:hidden">{t('dashboard.send_email').split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger
               value="issues"
               className="flex items-center gap-2 py-3 data-[state=active]:gradient-desert data-[state=active]:text-primary-foreground"
@@ -132,9 +136,11 @@ export default function Dashboard() {
             )}
           </TabsList>
 
-          <TabsContent value="poll" className="animate-fade-in">
-            <DailyPoll />
-          </TabsContent>
+          {!isAdmin && (
+            <TabsContent value="poll" className="animate-fade-in">
+              <DailyPoll />
+            </TabsContent>
+          )}
 
           {!isAdmin && (
             <TabsContent value="groups" className="animate-fade-in">
@@ -148,9 +154,11 @@ export default function Dashboard() {
             </TabsContent>
           )}
 
-          <TabsContent value="email" className="animate-fade-in">
-            <EmailForm />
-          </TabsContent>
+          {!isAdmin && (
+            <TabsContent value="email" className="animate-fade-in">
+              <EmailForm />
+            </TabsContent>
+          )}
 
           <TabsContent value="issues" className="animate-fade-in">
             <IssueReporting />
