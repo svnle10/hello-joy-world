@@ -121,17 +121,17 @@ serve(async (req) => {
     const { language, email, pickupTime }: EmailWebhookRequest = await req.json();
     console.log("Sending email webhook for:", { language, email: email.substring(0, 5) + "***", pickupTime });
 
-    // Forward to n8n webhook
-    const webhookResponse = await fetch(profile.webhook_url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        language,
-        email: email.trim(),
-        pickupTime,
-      }),
+    // Build URL with query parameters for n8n webhook (expects GET)
+    const webhookUrl = new URL(profile.webhook_url);
+    webhookUrl.searchParams.set("language", language);
+    webhookUrl.searchParams.set("email", email.trim());
+    webhookUrl.searchParams.set("pickupTime", pickupTime);
+
+    console.log("Calling webhook URL:", webhookUrl.toString().replace(email.trim(), "***"));
+
+    // Forward to n8n webhook using GET
+    const webhookResponse = await fetch(webhookUrl.toString(), {
+      method: "GET",
     });
 
     if (!webhookResponse.ok) {
