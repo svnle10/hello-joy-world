@@ -76,45 +76,21 @@ export default function EmailForm() {
       return;
     }
 
-    // Validate webhook URL (SSRF protection)
-    const urlValidation = isValidWebhookUrl(webhookUrl);
-    if (!urlValidation.valid) {
-      toast.error('Invalid webhook URL configuration. Contact admin.');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // Send to n8n webhook as JSON
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Call edge function instead of direct webhook call
+      const { data, error } = await supabase.functions.invoke('send-email-webhook', {
+        body: {
           language: language,
           email: email.trim(),
           pickupTime: pickupTime,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to send data');
-      }
-
-      // Log the email in database
-      const { error: logError } = await supabase
-        .from('email_logs')
-        .insert({
-          guide_id: user.id,
-          customer_email: email.trim(),
-          customer_language: language,
-          pickup_time: pickupTime,
-        });
-
-      if (logError) {
-        console.error('Error logging email:', logError);
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to send data');
       }
 
       const now = new Date();
@@ -124,7 +100,7 @@ export default function EmailForm() {
       logToSheets({
         '#Date': now.toISOString().split('T')[0],
         '#Operation_Time': timeOnly,
-        '#Guide': guideName || user.email || '',
+        '#Guide': data?.guideName || guideName || user.email || '',
         '#Customer_Email': email.trim(),
         '#Pickup_Time': pickupTime,
         '#Customer_Language': language,
