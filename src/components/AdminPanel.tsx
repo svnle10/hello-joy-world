@@ -11,13 +11,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings, Shield, LineChart, CalendarDays, UsersRound } from 'lucide-react';
+import { Loader2, UserPlus, Users, BarChart3, Trash2, Pencil, Settings, Shield, LineChart, CalendarDays, UsersRound, CalendarOff } from 'lucide-react';
 import { format } from 'date-fns';
 import SheetsWebhookSettings from './SheetsWebhookSettings';
 import WebhookSettings from './WebhookSettings';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import DailyAssignments from './DailyAssignments';
 import { GroupManagement } from './GroupManagement';
+import VacationRequestsManagement from './VacationRequestsManagement';
 
 interface Guide {
   id: string;
@@ -418,7 +419,7 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="analytics" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-8 h-auto p-1">
           <TabsTrigger value="analytics" className="flex items-center gap-2 py-2">
             <LineChart className="h-4 w-4" />
             Analytics
@@ -430,6 +431,10 @@ export default function AdminPanel() {
           <TabsTrigger value="assignments" className="flex items-center gap-2 py-2">
             <CalendarDays className="h-4 w-4" />
             Assignments
+          </TabsTrigger>
+          <TabsTrigger value="vacations" className="flex items-center gap-2 py-2">
+            <CalendarOff className="h-4 w-4" />
+            Vacations
           </TabsTrigger>
           <TabsTrigger value="guides" className="flex items-center gap-2 py-2">
             <Users className="h-4 w-4" />
@@ -462,6 +467,11 @@ export default function AdminPanel() {
         {/* Assignments Tab */}
         <TabsContent value="assignments">
           <DailyAssignments />
+        </TabsContent>
+
+        {/* Vacations Tab */}
+        <TabsContent value="vacations">
+          <VacationRequestsManagement />
         </TabsContent>
 
         {/* Guides Tab */}
