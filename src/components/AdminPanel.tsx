@@ -19,6 +19,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import DailyAssignments from './DailyAssignments';
 import { GroupManagement } from './GroupManagement';
 import VacationRequestsManagement from './VacationRequestsManagement';
+import ReportsFilters from './ReportsFilters';
 
 interface Guide {
   id: string;
@@ -58,6 +59,13 @@ export default function AdminPanel() {
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [deletingReport, setDeletingReport] = useState<string | null>(null);
+  
+  // Reports filters
+  const [reportFilters, setReportFilters] = useState<{
+    guideId: string | null;
+    activityId: string | null;
+    date: Date | null;
+  }>({ guideId: null, activityId: null, date: null });
   
   // New guide form
   const [newEmail, setNewEmail] = useState('');
@@ -792,6 +800,7 @@ export default function AdminPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <ReportsFilters onFilterChange={setReportFilters} />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -803,7 +812,27 @@ export default function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reports.map((report) => (
+                  {reports
+                    .filter((report) => {
+                      // Filter by guide
+                      if (reportFilters.guideId && report.guide_id !== reportFilters.guideId) {
+                        return false;
+                      }
+                      // Filter by activity
+                      if (reportFilters.activityId && report.activity_id !== reportFilters.activityId) {
+                        return false;
+                      }
+                      // Filter by date
+                      if (reportFilters.date) {
+                        const reportDate = new Date(report.report_date).toDateString();
+                        const filterDate = reportFilters.date.toDateString();
+                        if (reportDate !== filterDate) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    })
+                    .map((report) => (
                     <TableRow key={report.id}>
                       <TableCell>
                         {(report.profiles as any)?.full_name || 'Unknown'}
@@ -857,10 +886,19 @@ export default function AdminPanel() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {reports.length === 0 && (
+                  {reports.filter((report) => {
+                    if (reportFilters.guideId && report.guide_id !== reportFilters.guideId) return false;
+                    if (reportFilters.activityId && report.activity_id !== reportFilters.activityId) return false;
+                    if (reportFilters.date) {
+                      const reportDate = new Date(report.report_date).toDateString();
+                      const filterDate = reportFilters.date.toDateString();
+                      if (reportDate !== filterDate) return false;
+                    }
+                    return true;
+                  }).length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        No reports yet
+                        No reports found
                       </TableCell>
                     </TableRow>
                   )}
