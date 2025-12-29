@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,10 +71,20 @@ export default function GuideGroups() {
   const [importing, setImporting] = useState(false);
   const [groupNumber, setGroupNumber] = useState<number>(1);
 
-  useEffect(() => {
+  const fetchDataCallback = useCallback(() => {
     fetchGroups();
     fetchGuideAssignment();
   }, [user]);
+
+  useEffect(() => {
+    fetchDataCallback();
+  }, [fetchDataCallback]);
+
+  // Subscribe to realtime updates for groups and bookings
+  useRealtimeSubscription({
+    tables: ['groups', 'bookings', 'daily_assignments'],
+    onDataChange: fetchDataCallback,
+  });
 
   const fetchGuideAssignment = async () => {
     if (!user) return;
