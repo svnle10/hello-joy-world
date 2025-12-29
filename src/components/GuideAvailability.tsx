@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Trash2, CalendarOff, Plus } from 'lucide-react';
@@ -31,11 +32,21 @@ export default function GuideAvailability() {
   const [reason, setReason] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchRecordsCallback = useCallback(() => {
     if (user) {
       fetchRecords();
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchRecordsCallback();
+  }, [fetchRecordsCallback]);
+
+  // Subscribe to realtime updates for guide_unavailability
+  useRealtimeSubscription({
+    tables: ['guide_unavailability'],
+    onDataChange: fetchRecordsCallback,
+  });
 
   const fetchRecords = async () => {
     try {

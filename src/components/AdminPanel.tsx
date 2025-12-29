@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { isValidWebhookUrl } from '@/lib/webhookValidator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,9 +90,19 @@ export default function AdminPanel() {
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchDataCallback = useCallback(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchDataCallback();
+  }, [fetchDataCallback]);
+
+  // Subscribe to realtime updates for reports
+  useRealtimeSubscription({
+    tables: ['daily_reports', 'daily_assignments', 'guide_unavailability'],
+    onDataChange: fetchDataCallback,
+  });
 
   const fetchData = async () => {
     setLoading(true);

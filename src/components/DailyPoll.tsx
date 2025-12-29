@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -46,9 +47,19 @@ export default function DailyPoll() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayFormatted = format(new Date(), 'dd/MM/yyyy');
 
-  useEffect(() => {
+  const fetchDataCallback = useCallback(() => {
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    fetchDataCallback();
+  }, [fetchDataCallback]);
+
+  // Subscribe to realtime updates for daily_reports
+  useRealtimeSubscription({
+    tables: ['daily_reports'],
+    onDataChange: fetchDataCallback,
+  });
 
   const fetchData = async () => {
     if (!user) return;
