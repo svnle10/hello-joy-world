@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,17 @@ interface ParsedGroup {
   total_participants: number;
   bookings: ParsedBooking[];
 }
+
+// Validation schemas for input security
+const parsedBookingSchema = z.object({
+  phone: z.string().max(20, "Phone number too long"),
+  booking_reference: z.string().min(3, "Booking reference too short").max(50, "Booking reference too long"),
+  email: z.string().email("Invalid email").max(255, "Email too long").or(z.literal("")),
+  customer_name: z.string().min(2, "Name too short").max(100, "Name too long"),
+  language: z.string().max(50, "Language too long"),
+  number_of_people: z.number().min(1).max(999),
+  meeting_point: z.string().max(200, "Meeting point too long"),
+});
 
 const MEETING_TIMES = [
   "09:00",
@@ -250,15 +262,25 @@ export const GroupManagement = () => {
           const partMatch = langLine.match(/🎟\s*Participants:\s*(\d+)/i);
 
           if (nameMatch) {
-            bookingsList.push({
-              phone: phoneMatch[1].trim(),
-              booking_reference: refMatch[1].trim(),
-              email: emailMatch ? emailMatch[1].trim() : "",
-              customer_name: nameMatch[1].trim(),
-              language: langMatch ? langMatch[1].trim() : "English",
-              number_of_people: partMatch ? parseInt(partMatch[1]) : 1,
-              meeting_point: currentMeetingPoint || "Unknown",
-            });
+            const rawBooking = {
+              phone: phoneMatch[1].trim().slice(0, 20),
+              booking_reference: refMatch[1].trim().slice(0, 50),
+              email: emailMatch ? emailMatch[1].trim().slice(0, 255) : "",
+              customer_name: nameMatch[1].trim().slice(0, 100),
+              language: langMatch ? langMatch[1].trim().slice(0, 50) : "English",
+              number_of_people: Math.min(999, Math.max(1, partMatch ? parseInt(partMatch[1]) : 1)),
+              meeting_point: (currentMeetingPoint || "Unknown").slice(0, 200),
+            };
+
+            // Validate booking with schema
+            const validationResult = parsedBookingSchema.safeParse(rawBooking);
+            if (validationResult.success) {
+              bookingsList.push(validationResult.data as ParsedBooking);
+            } else {
+              console.warn("Booking validation failed:", validationResult.error.errors, rawBooking);
+              // Still add the booking with truncated values for data quality
+              bookingsList.push(rawBooking as ParsedBooking);
+            }
           }
         }
       }

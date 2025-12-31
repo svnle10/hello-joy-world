@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
+import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2, Plus, Trash2, Image, Video, X, AlertTriangle, FileText, UserX, CalendarClock, Users } from 'lucide-react';
+
+// Validation schema for issue submission
+const issueSchema = z.object({
+  booking_reference: z.string().min(3, "Booking reference too short").max(50, "Booking reference too long"),
+  description: z.string().min(10, "Description too short (min 10 characters)").max(2000, "Description too long (max 2000 characters)"),
+});
 
 type IssueType = 'problem' | 'no_show' | 'postponement';
 
@@ -194,8 +201,15 @@ export default function IssueReporting() {
     e.preventDefault();
     if (!user) return;
 
-    if (!bookingReference.trim() || !description.trim()) {
-      toast.error('Please fill in all required fields');
+    // Validate input with zod schema
+    const validationResult = issueSchema.safeParse({
+      booking_reference: bookingReference.trim(),
+      description: description.trim(),
+    });
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
 
