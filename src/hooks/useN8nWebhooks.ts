@@ -31,41 +31,49 @@ export function useN8nWebhooks() {
     try {
       const settingKey = WEBHOOK_KEY_MAP[type];
       
+      console.log(`[n8n Webhook] Looking for key: ${settingKey}`);
+      
       // Fetch the webhook URL from app_settings
       const { data: settings, error } = await supabase
         .from('app_settings')
-        .select('value')
+        .select('key, value')
         .eq('key', settingKey)
-        .maybeSingle();
+        .single();
 
       if (error) {
-        console.error(`Error fetching ${type} webhook URL:`, error);
+        console.log(`[n8n Webhook] No webhook found for ${type} (key: ${settingKey}):`, error.message);
         return false;
       }
 
       const webhookUrl = settings?.value;
       
+      console.log(`[n8n Webhook] Found URL for ${type}:`, webhookUrl ? 'Yes' : 'No');
+      
       if (!webhookUrl) {
-        console.log(`No webhook URL configured for ${type}`);
+        console.log(`[n8n Webhook] Empty webhook URL for ${type}`);
         return false;
       }
 
       // Send data to webhook
-      const response = await fetch(webhookUrl, {
+      const payload = {
+        ...data,
+        action,
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log(`[n8n Webhook] Sending to ${type}:`, payload);
+      
+      await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         mode: 'no-cors', // Required for cross-origin requests
-        body: JSON.stringify({
-          ...data,
-          action,
-          timestamp: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
 
-      console.log(`Data sent to ${type} webhook`);
+      console.log(`[n8n Webhook] ✅ Data sent to ${type} webhook`);
       return true;
     } catch (err) {
-      console.error(`Error sending to ${type} webhook:`, err);
+      console.error(`[n8n Webhook] ❌ Error sending to ${type}:`, err);
       return false;
     }
   }, []);
