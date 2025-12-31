@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Calendar, Users } from "lucide-react";
 import { format } from "date-fns";
+import { useN8nWebhooks } from "@/hooks/useN8nWebhooks";
 
 interface Guide {
   user_id: string;
@@ -25,6 +26,7 @@ interface Assignment {
 }
 
 const DailyAssignments = () => {
+  const { logDailyAssignment } = useN8nWebhooks();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -107,6 +109,17 @@ const DailyAssignments = () => {
       });
 
       if (error) throw error;
+
+      // Get guide name for webhook
+      const guideName = guides.find(g => g.user_id === selectedGuide)?.full_name || '';
+      
+      // Log to n8n Daily Assignments webhook
+      logDailyAssignment({
+        assignment_date: selectedDate,
+        guide_id: selectedGuide,
+        guide_name: guideName,
+        group_number: groupNum,
+      }, 'add');
 
       toast.success("Assignment added successfully");
       setSelectedGuide("");

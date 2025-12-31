@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +61,7 @@ const ISSUE_TYPE_CONFIG: Record<IssueType, { label: string; icon: React.ReactNod
 
 export default function IssueReporting() {
   const { user, isAdmin } = useAuth();
+  const { logIssue } = useN8nWebhooks();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -237,6 +239,16 @@ export default function IssueReporting() {
             });
         }
       }
+
+      // Log to n8n Issues webhook
+      logIssue({
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        booking_reference: bookingReference.trim(),
+        issue_type: issueType,
+        description: description.trim(),
+        guide_id: user.id,
+      });
 
       toast.success('Issue reported successfully');
       setBookingReference('');

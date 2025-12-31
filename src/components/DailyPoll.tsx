@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ interface CompletedActivity {
 export default function DailyPoll() {
   const { user } = useAuth();
   const { logToSheets, logDeleteToSheets } = useSheetsLogger();
+  const { logDailyReport, deleteDailyReport } = useN8nWebhooks();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [completedActivities, setCompletedActivities] = useState<CompletedActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,12 +136,21 @@ export default function DailyPoll() {
 
       if (insertError) throw insertError;
 
-      // Log to Google Sheets via n8n with guide name and formatted time
+      // Log to Google Sheets via n8n (first webhook - Sheets Logging)
       logToSheets({
         '#Date': today,
         '#Operation_Time': timeOnly,
         '#Guide': guideName || user.email || '',
         '#Activity': `${activity.name} (${activity.name_ar})`,
+      });
+
+      // Log to n8n Daily Reports webhook (second webhook)
+      logDailyReport({
+        date: today,
+        time: timeOnly,
+        guide: guideName || user.email || '',
+        activity: activity.name,
+        activity_ar: activity.name_ar,
       });
 
       // Update local state
@@ -177,7 +188,7 @@ export default function DailyPoll() {
 
       if (deleteError) throw deleteError;
 
-      // Log deletion to Google Sheets with matching data for n8n to find and delete
+      // Log deletion to Google Sheets (first webhook - Sheets Logging)
       logDeleteToSheets({
         '#Date': today,
         '#Operation_Time': timeOnly,
@@ -187,6 +198,15 @@ export default function DailyPoll() {
         '#Search_Guide': guideName || user.email || '',
         '#Search_Activity': `${activityToDelete.name} (${activityToDelete.name_ar})`,
         '#Search_Date': today,
+      });
+
+      // Log deletion to n8n Daily Reports webhook (second webhook)
+      deleteDailyReport({
+        date: today,
+        time: timeOnly,
+        guide: guideName || user.email || '',
+        activity: activityToDelete.name,
+        activity_ar: activityToDelete.name_ar,
       });
 
       // Update local state
