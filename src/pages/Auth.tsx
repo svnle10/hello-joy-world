@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ type UserRole = 'guide' | 'admin';
 export default function Auth() {
   const { user, loading, signInWithPhone, signInWithEmail } = useAuth();
   const { t, dir } = useLanguage();
+  const { logUserLogin } = useN8nWebhooks();
   const [phone, setPhone] = useState('');
   const [phonePassword, setPhonePassword] = useState('');
   const [email, setEmail] = useState('');
@@ -86,6 +88,12 @@ export default function Auth() {
     if (error) {
       toast.error(t('auth.invalid_credentials'));
     } else {
+      // Log to n8n User Logins webhook
+      logUserLogin({
+        login_method: 'phone',
+        phone: cleanedPhone,
+        role: selectedRole,
+      });
       toast.success(t('poll.success'));
     }
     setIsLoading(false);
@@ -106,6 +114,12 @@ export default function Auth() {
     if (error) {
       toast.error(t('auth.invalid_credentials'));
     } else {
+      // Log to n8n User Logins webhook
+      logUserLogin({
+        login_method: 'email',
+        email: email,
+        role: selectedRole,
+      });
       toast.success(t('poll.success'));
     }
     setIsLoading(false);

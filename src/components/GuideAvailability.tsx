@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Trash2, CalendarOff, Plus } from 'lucide-react';
@@ -25,6 +26,7 @@ interface UnavailabilityRecord {
 
 export default function GuideAvailability() {
   const { user } = useAuth();
+  const { logGuideUnavailability } = useN8nWebhooks();
   const [records, setRecords] = useState<UnavailabilityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -108,6 +110,13 @@ export default function GuideAvailability() {
         });
 
       if (error) throw error;
+
+      // Log to n8n Guide Unavailability webhook
+      logGuideUnavailability({
+        date: formattedDate,
+        guide_id: user?.id,
+        reason: reason.trim(),
+      });
 
       toast.success('Unavailability recorded successfully');
       setSelectedDate(undefined);

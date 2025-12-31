@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useSheetsLogger, formatTimeOnly } from '@/hooks/useSheetsLogger';
+import { useN8nWebhooks } from '@/hooks/useN8nWebhooks';
 import { isValidWebhookUrl } from '@/lib/webhookValidator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ const languages = [
 export default function EmailForm() {
   const { user } = useAuth();
   const { logToSheets } = useSheetsLogger();
+  const { logEmailSent } = useN8nWebhooks();
   const [language, setLanguage] = useState('');
   const [email, setEmail] = useState('');
   const [pickupTime, setPickupTime] = useState('');
@@ -96,7 +98,7 @@ export default function EmailForm() {
       const now = new Date();
       const timeOnly = formatTimeOnly(now);
 
-      // Log to Google Sheets with guide name and formatted time
+      // Log to Google Sheets (first webhook - Sheets Logging)
       logToSheets({
         '#Date': now.toISOString().split('T')[0],
         '#Operation_Time': timeOnly,
@@ -104,6 +106,16 @@ export default function EmailForm() {
         '#Customer_Email': email.trim(),
         '#Pickup_Time': pickupTime,
         '#Customer_Language': language,
+      });
+
+      // Log to n8n Email Logs webhook (second webhook)
+      logEmailSent({
+        date: now.toISOString().split('T')[0],
+        time: timeOnly,
+        guide: data?.guideName || guideName || user.email || '',
+        customer_email: email.trim(),
+        pickup_time: pickupTime,
+        customer_language: language,
       });
 
       toast.success('Data sent successfully! ✉️');
