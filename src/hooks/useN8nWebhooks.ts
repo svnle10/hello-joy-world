@@ -29,51 +29,54 @@ export function useN8nWebhooks() {
     action: 'add' | 'update' | 'delete' = 'add'
   ): Promise<boolean> => {
     try {
-      const settingKey = WEBHOOK_KEY_MAP[type];
-      
-      console.log(`[n8n Webhook] Looking for key: ${settingKey}`);
-      
-      // Fetch the webhook URL from app_settings
-      const { data: settings, error } = await supabase
-        .from('app_settings')
-        .select('key, value')
-        .eq('key', settingKey)
-        .single();
+      // Important: webhook URLs are protected in the database (guides can't read them).
+      // So we always go through the backend function which reads settings securely
+      // and forwards the payload to the correct n8n webhook.
 
-      if (error) {
-        console.log(`[n8n Webhook] No webhook found for ${type} (key: ${settingKey}):`, error.message);
-        return false;
-      }
-
-      const webhookUrl = settings?.value;
-      
-      console.log(`[n8n Webhook] Found URL for ${type}:`, webhookUrl ? 'Yes' : 'No');
-      
-      if (!webhookUrl) {
-        console.log(`[n8n Webhook] Empty webhook URL for ${type}`);
-        return false;
-      }
-
-      // Send data to webhook
-      const payload = {
-        ...data,
-        action,
-        timestamp: new Date().toISOString(),
+      const typeMap: Record<WebhookType, 'daily_report' | 'email_log' | 'issue' | 'unavailability' | 'group' | 'booking' | 'assignment' | 'user_login'> = {
+        daily_reports: 'daily_report',
+        email_logs: 'email_log',
+        issues: 'issue',
+        guide_unavailability: 'unavailability',
+        groups: 'group',
+        bookings: 'booking',
+        daily_assignments: 'assignment',
+        user_logins: 'user_login',
       };
-      
-      console.log(`[n8n Webhook] Sending to ${type}:`, payload);
-      
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors', // Required for cross-origin requests
-        body: JSON.stringify(payload),
+
+      const actionMap = {
+        add: 'create',
+        update: 'update',
+        delete: 'delete',
+      } as const;
+
+      const mappedType = typeMap[type];
+      const mappedAction = actionMap[action];
+
+      console.log('[n8n Webhook] invoke log-to-n8n:', { type: mappedType, action: mappedAction, data });
+
+      const { data: resp, error } = await supabase.functions.invoke('log-to-n8n', {
+        body: {
+          type: mappedType,
+          action: mappedAction,
+          data,
+        },
       });
 
-      console.log(`[n8n Webhook] ✅ Data sent to ${type} webhook`);
-      return true;
+      if (error) {
+        console.error('[n8n Webhook] log-to-n8n error:', error);
+        return false;
+      }
+
+      if (resp?.success) {
+        console.log('[n8n Webhook] ✅ forwarded successfully');
+        return true;
+      }
+
+      console.log('[n8n Webhook] ⚠️ not forwarded (likely not configured):', resp);
+      return false;
     } catch (err) {
-      console.error(`[n8n Webhook] ❌ Error sending to ${type}:`, err);
+      console.error('[n8n Webhook] ❌ unexpected error:', err);
       return false;
     }
   }, []);
