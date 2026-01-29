@@ -94,7 +94,6 @@ export default function Auth() {
         phone: cleanedPhone,
         role: selectedRole,
       });
-      toast.success(t('poll.success'));
     }
     setIsLoading(false);
   };
@@ -120,7 +119,6 @@ export default function Auth() {
         email: email,
         role: selectedRole,
       });
-      toast.success(t('poll.success'));
     }
     setIsLoading(false);
   };
