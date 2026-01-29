@@ -255,11 +255,11 @@ export default function GuideGroups() {
 
       if (groupsError) throw groupsError;
 
-      // Fetch bookings for these groups
+      // Fetch bookings for these groups using secure view (masks PII for guides)
       if (groupsData && groupsData.length > 0) {
         const groupIds = groupsData.map(g => g.id);
         const { data: bookingsData } = await supabase
-          .from('bookings')
+          .from('bookings_secure')
           .select('*')
           .in('group_id', groupIds);
 

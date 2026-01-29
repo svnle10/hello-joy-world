@@ -414,6 +414,62 @@ export type Database = {
       }
     }
     Views: {
+      bookings_secure: {
+        Row: {
+          booking_reference: string | null
+          created_at: string | null
+          customer_name: string | null
+          email: string | null
+          group_id: string | null
+          id: string | null
+          language: string | null
+          meeting_point: string | null
+          notes: string | null
+          number_of_people: number | null
+          phone: string | null
+          postponed_to: string | null
+          status: string | null
+        }
+        Insert: {
+          booking_reference?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          email?: never
+          group_id?: string | null
+          id?: string | null
+          language?: string | null
+          meeting_point?: string | null
+          notes?: string | null
+          number_of_people?: number | null
+          phone?: never
+          postponed_to?: string | null
+          status?: string | null
+        }
+        Update: {
+          booking_reference?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          email?: never
+          group_id?: string | null
+          id?: string | null
+          language?: string | null
+          meeting_point?: string | null
+          notes?: string | null
+          number_of_people?: number | null
+          phone?: never
+          postponed_to?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs_secure: {
         Row: {
           customer_email: string | null
@@ -452,6 +508,7 @@ export type Database = {
         Returns: boolean
       }
       mask_email: { Args: { email_address: string }; Returns: string }
+      mask_phone: { Args: { phone_number: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "guide"
