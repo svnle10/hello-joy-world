@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -13,11 +13,17 @@ import GuideGroups from '@/components/GuideGroups';
 import GuideAvailability from '@/components/GuideAvailability';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import MyAccount from '@/components/MyAccount';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user, loading, isAdmin, signOut } = useAuth();
   const { t, dir } = useLanguage();
   const [activeTab, setActiveTab] = useState(() => isAdmin ? 'issues' : 'poll');
+
+  // Clear any stale toasts when dashboard loads
+  useEffect(() => {
+    toast.dismiss();
+  }, []);
 
   if (loading) {
     return (
